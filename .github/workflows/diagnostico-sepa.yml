@@ -1,0 +1,90 @@
+# ¿El SEPA es alcanzable desde los runners de GitHub?
+#
+# Verificado el 09/09/2026 desde Render (Oregon): el TCP a datos.produccion.gob.ar
+# muere por timeout — los paquetes no llegan. No es WAF ni User-Agent: es bloqueo
+# de red. Desde Render el SEPA es inalcanzable, punto.
+#
+# Los runners de GitHub salen por IPs de Azure, otro rango y otra reputación.
+# Si desde acá SÍ responde, el camino es: este workflow baja el dataset, lo sube
+# como release asset, y Render lo consume desde GitHub en vez del portal.
+# Eso recupera el dato CON sucursales, que es lo que VTEX no puede dar.
+#
+# Se dispara a mano (Actions → Diagnóstico SEPA → Run workflow).
+
+name: Diagnóstico SEPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  alcanzabilidad:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: ¿Desde dónde estamos saliendo?
+        run: |
+          echo "IP pública del runner:"
+          curl -s --max-time 10 https://api.ipify.org || echo "(no se pudo obtener)"
+          echo
+
+      - name: Prueba por capas contra el SEPA
+        run: |
+          python3 - <<'PY'
+          import socket, time, urllib.request, urllib.error
+
+          HOST = "datos.produccion.gob.ar"
+          ZIP  = ("https://datos.produccion.gob.ar/dataset/"
+                  "6f47ec76-d1ce-4e34-a7e1-621fe9b1d0b5/resource/"
+                  "0a9069a9-06e8-4f98-874d-da5578693290/download/sepa_lunes.zip")
+
+          print("=" * 60)
+          # 1. DNS
+          try:
+              ips = sorted(set(socket.gethostbyname_ex(HOST)[2]))
+              print(f"DNS      OK   {HOST} -> {ips}")
+          except Exception as e:
+              print(f"DNS      FALLA  {type(e).__name__}: {e}")
+              raise SystemExit(1)
+
+          # 2. TCP — la capa exacta donde muere desde Render
+          t0 = time.perf_counter()
+          try:
+              socket.create_connection((HOST, 443), timeout=15).close()
+              print(f"TCP :443 OK   {(time.perf_counter()-t0)*1000:.0f} ms")
+          except Exception as e:
+              print(f"TCP :443 FALLA  {type(e).__name__}: {e}  "
+                    f"({(time.perf_counter()-t0)*1000:.0f} ms)")
+              print()
+              print(">>> El SEPA tampoco es alcanzable desde GitHub Actions.")
+              print(">>> Descartada la vía del mirror. Queda Precios Claros o VTEX.")
+              raise SystemExit(1)
+
+          # 3. HTTP — Range para traer 1 KB, no 300 MB
+          req = urllib.request.Request(ZIP, headers={
+              "Range": "bytes=0-1023",
+              "User-Agent": "supercomparador-diagnostico/1.0 (+github-actions)",
+          })
+          try:
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  body = r.read()
+                  print(f"HTTP     OK   status={r.status} "
+                        f"content-type={r.headers.get('content-type')} "
+                        f"bytes={len(body)}")
+                  # PK\x03\x04 = firma ZIP. Si está, el archivo es real.
+                  if body[:2] == b"PK":
+                      print("ZIP      OK   firma PK válida — el dataset baja de verdad")
+                  else:
+                      print(f"ZIP      OJO  primeros bytes: {body[:16]!r} (¿no es un ZIP?)")
+          except urllib.error.HTTPError as e:
+              print(f"HTTP     FALLA  status={e.code} {e.reason}")
+              raise SystemExit(1)
+          except Exception as e:
+              print(f"HTTP     FALLA  {type(e).__name__}: {e}")
+              raise SystemExit(1)
+
+          print()
+          print(">>> EL SEPA ES ALCANZABLE DESDE GITHUB ACTIONS.")
+          print(">>> Vía del mirror viable: Actions baja -> release asset -> Render consume.")
+          print(">>> Recuperás el dato CON sucursales.")
+          print("=" * 60)
+          PY

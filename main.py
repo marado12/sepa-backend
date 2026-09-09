@@ -2536,9 +2536,11 @@ _DIAG_TARGETS = [
         "critico": False,
     },
     {
-        "id": "datos_gob_ar",
-        "desc": "Portal nacional datos.gob.ar (federa el mismo dataset)",
-        "url": "https://www.datos.gob.ar/dataset/produccion-precios-claros---base-sepa",
+        # Verificado 09/09/2026: datos.gob.ar ya no lista ningún dataset de
+        # "produccion" — el portal nacional dejó de federarlo. No es un mirror.
+        "id": "precios_claros_api",
+        "desc": "Precios Claros — endpoint de datos que consume su propia SPA",
+        "url": "https://www.preciosclaros.gob.ar/api/sucursales?limit=1",
         "sonda": "get",
         "critico": False,
     },
@@ -2693,8 +2695,17 @@ def _diag_un_target(t: dict) -> dict:
         res["veredicto"] = "RARO — anda con UA de requests pero no de navegador"
     elif a.get("status") or b.get("status"):
         st = b.get("status") or a.get("status")
-        res["veredicto"] = (f"BLOQUEO DE APLICACIÓN (HTTP {st}) — el host contesta "
-                            f"pero rechaza. WAF, geo o reputación de IP.")
+        if st in (401, 403, 429):
+            res["veredicto"] = (f"BLOQUEO DE APLICACIÓN (HTTP {st}) — el host contesta "
+                                f"pero rechaza. WAF, geo o reputación de IP.")
+        elif st in (404, 410):
+            # No es un bloqueo: el host nos atiende bien, el recurso no está ahí.
+            res["veredicto"] = (f"RECURSO INEXISTENTE (HTTP {st}) — el host responde "
+                                f"normal. La URL cambió o el dataset se dio de baja.")
+        elif st >= 500:
+            res["veredicto"] = f"ERROR DEL SERVIDOR (HTTP {st}) — problema del origen, no nuestro."
+        else:
+            res["veredicto"] = f"HTTP {st} inesperado"
     else:
         err = (b.get("error") or a.get("error") or "")
         if "Timeout" in err:
