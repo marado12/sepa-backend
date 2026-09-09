@@ -2501,6 +2501,263 @@ def diagnostico_zip(dia: int = 1, n_inner: int = 3):
         "inspeccionados": len(resultado),
         "resultado": resultado,
     }
+# ─────────────────────────────────────────────
+#  DIAGNÓSTICO DE RED (roadmap 0.1 / fuentes alternativas)
+# ─────────────────────────────────────────────
+
+# Objetivos fijos y hardcodeados a propósito: el endpoint NO acepta URLs del
+# usuario. Si aceptara, sería un SSRF de manual (T.1 del roadmap: la API es
+# pública y sin auth). Para agregar un objetivo se toca esta lista y se deploya.
+#
+# `sonda`:
+#   "range" → GET con Range: bytes=0-1023. Baja 1 KB, no 300 MB. Sirve para el
+#             ZIP del SEPA sin quemar RAM ni tiempo.
+#   "get"   → GET normal, se leen los primeros bytes y se corta.
+_DIAG_TARGETS = [
+    {
+        "id": "sepa_zip",
+        "desc": "El ZIP del SEPA que usa el backend (día lunes)",
+        "url": SEPA_URLS[0],
+        "sonda": "range",
+        "critico": True,
+    },
+    {
+        "id": "sepa_portal",
+        "desc": "Portal de datos abiertos de Producción (host del SEPA)",
+        "url": "https://datos.produccion.gob.ar/dataset/sepa-precios",
+        "sonda": "get",
+        "critico": True,
+    },
+    {
+        "id": "precios_claros",
+        "desc": "Precios Claros — mismo programa oficial, otra infraestructura",
+        "url": "https://www.preciosclaros.gob.ar/",
+        "sonda": "get",
+        "critico": False,
+    },
+    {
+        "id": "datos_gob_ar",
+        "desc": "Portal nacional datos.gob.ar (federa el mismo dataset)",
+        "url": "https://www.datos.gob.ar/dataset/produccion-precios-claros---base-sepa",
+        "sonda": "get",
+        "critico": False,
+    },
+    {
+        "id": "vtex_carrefour",
+        "desc": "API de catálogo VTEX (Carrefour) — fuente alternativa candidata",
+        "url": "https://www.carrefour.com.ar/api/catalog_system/pub/products/search/?ft=leche&_from=0&_to=0",
+        "sonda": "get",
+        "critico": False,
+    },
+    {
+        "id": "control_github",
+        "desc": "CONTROL: si esto falla, el problema es la salida a internet de Render",
+        "url": "https://api.github.com/zen",
+        "sonda": "get",
+        "critico": False,
+    },
+]
+
+# El backend hoy sale con el User-Agent por defecto de requests
+# ("python-requests/2.32.3"), que es un disparador clásico de WAF. Probamos las
+# dos variantes para saber si el bloqueo es por UA o por IP: es la diferencia
+# entre "se arregla con una línea" y "hay que cambiar de origen".
+_DIAG_UA_BROWSER = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+)
+
+_DIAG_CONNECT_TIMEOUT = 8
+_DIAG_READ_TIMEOUT    = 12
+
+
+def _diag_capa_red(host: str) -> dict:
+    """
+    Separa DNS de TCP. Es la distinción que importa: el CONTEXTO dice que desde
+    Render los paquetes ni llegan (timeout de conexión) mientras que desde otros
+    orígenes el borde contesta. Sin medir esto por separado no se puede saber si
+    el bloqueo es de red o de aplicación.
+    """
+    import socket
+
+    out = {"host": host}
+
+    t0 = time.perf_counter()
+    try:
+        ips = sorted(set(socket.gethostbyname_ex(host)[2]))
+        out["dns_ok"] = True
+        out["dns_ms"] = round((time.perf_counter() - t0) * 1000)
+        out["ips"] = ips
+    except Exception as e:
+        out["dns_ok"] = False
+        out["dns_ms"] = round((time.perf_counter() - t0) * 1000)
+        out["error"] = f"{type(e).__name__}: {e}"
+        return out
+
+    t0 = time.perf_counter()
+    try:
+        s = socket.create_connection((host, 443), timeout=_DIAG_CONNECT_TIMEOUT)
+        s.close()
+        out["tcp_ok"] = True
+        out["tcp_ms"] = round((time.perf_counter() - t0) * 1000)
+    except Exception as e:
+        out["tcp_ok"] = False
+        out["tcp_ms"] = round((time.perf_counter() - t0) * 1000)
+        out["error"] = f"{type(e).__name__}: {e}"
+
+    return out
+
+
+def _diag_sonda_http(url: str, sonda: str, ua: Optional[str]) -> dict:
+    """Un intento HTTP. Nunca baja más de ~1 KB del cuerpo."""
+    headers = {}
+    if ua:
+        headers["User-Agent"] = ua
+    if sonda == "range":
+        headers["Range"] = "bytes=0-1023"
+
+    t0 = time.perf_counter()
+    try:
+        resp = requests.get(
+            url,
+            headers=headers,
+            stream=True,
+            allow_redirects=True,
+            timeout=(_DIAG_CONNECT_TIMEOUT, _DIAG_READ_TIMEOUT),
+        )
+        try:
+            primeros = next(resp.iter_content(chunk_size=1024), b"") or b""
+        finally:
+            resp.close()
+
+        return {
+            "ok": resp.status_code < 400,
+            "status": resp.status_code,
+            "ms": round((time.perf_counter() - t0) * 1000),
+            "content_type": resp.headers.get("content-type"),
+            "content_length": resp.headers.get("content-length"),
+            "server": resp.headers.get("server"),
+            # Delatan al WAF cuando devuelve 403 sin decir por qué.
+            "cf_ray": resp.headers.get("cf-ray"),
+            "redirigido_a": resp.url if resp.url != url else None,
+            "bytes_leidos": len(primeros),
+        }
+    except Exception as e:
+        return {
+            "ok": False,
+            "status": None,
+            "ms": round((time.perf_counter() - t0) * 1000),
+            "error": f"{type(e).__name__}: {str(e)[:300]}",
+        }
+
+
+def _diag_un_target(t: dict) -> dict:
+    from urllib.parse import urlparse
+
+    host = urlparse(t["url"]).hostname or ""
+    red = _diag_capa_red(host)
+
+    res = {
+        "id": t["id"],
+        "desc": t["desc"],
+        "url": t["url"],
+        "critico": t["critico"],
+        "red": red,
+    }
+
+    # Si ni siquiera hay TCP, las sondas HTTP solo agregan 20s de timeout.
+    if not red.get("tcp_ok"):
+        res["http_requests_ua"] = {"ok": False, "saltado": "sin TCP"}
+        res["http_browser_ua"]  = {"ok": False, "saltado": "sin TCP"}
+        res["veredicto"] = "BLOQUEO DE RED — los paquetes no llegan al host"
+        return res
+
+    # En paralelo: en serie el peor caso era 2x(connect+read) = 40s por objetivo,
+    # demasiado para abrirlo desde el navegador.
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        f_req = pool.submit(_diag_sonda_http, t["url"], t["sonda"], None)
+        f_brw = pool.submit(_diag_sonda_http, t["url"], t["sonda"], _DIAG_UA_BROWSER)
+        res["http_requests_ua"] = f_req.result()
+        res["http_browser_ua"]  = f_brw.result()
+
+    a = res["http_requests_ua"]
+    b = res["http_browser_ua"]
+
+    if a["ok"] and b["ok"]:
+        res["veredicto"] = "OK"
+    elif b["ok"] and not a["ok"]:
+        res["veredicto"] = ("BLOQUEO POR USER-AGENT — anda con UA de navegador. "
+                            "Se arregla mandando el header.")
+    elif a["ok"] and not b["ok"]:
+        res["veredicto"] = "RARO — anda con UA de requests pero no de navegador"
+    elif a.get("status") or b.get("status"):
+        st = b.get("status") or a.get("status")
+        res["veredicto"] = (f"BLOQUEO DE APLICACIÓN (HTTP {st}) — el host contesta "
+                            f"pero rechaza. WAF, geo o reputación de IP.")
+    else:
+        err = (b.get("error") or a.get("error") or "")
+        if "Timeout" in err:
+            res["veredicto"] = "TIMEOUT HTTP — hay TCP pero la request no completa"
+        elif "SSL" in err or "Certificate" in err:
+            res["veredicto"] = f"FALLA TLS — TCP abre pero el handshake muere: {err[:120]}"
+        else:
+            res["veredicto"] = f"ERROR DE CONEXIÓN — {err[:160]}"
+
+    return res
+
+
+@app.get("/api/diagnostico-red")
+def diagnostico_red():
+    """
+    Prueba, DESDE DONDE CORRE ESTE BACKEND, cada origen de datos candidato.
+
+    Existe porque el 09/09/2026 descubrimos que el mismo host responde distinto
+    según desde dónde se lo consulte: desde Render los paquetes no llegan, desde
+    otros orígenes el borde contesta 403. Verificar desde un navegador no sirve
+    para decidir nada.
+
+    Por cada objetivo mide, en capas:
+      1. DNS        → ¿resuelve? ¿a qué IPs?
+      2. TCP :443   → ¿llegan los paquetes?   (acá muere hoy el SEPA en Render)
+      3. HTTP x2    → con UA de requests y con UA de navegador
+
+    No descarga datasets: usa Range para leer 1 KB. No escribe nada a disco.
+    No acepta URLs del usuario: la lista de objetivos es fija (evita SSRF).
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    t0 = time.perf_counter()
+    with ThreadPoolExecutor(max_workers=len(_DIAG_TARGETS)) as pool:
+        resultados = list(pool.map(_diag_un_target, _DIAG_TARGETS))
+
+    criticos_ok = [r for r in resultados if r["critico"] and r["veredicto"] == "OK"]
+    control     = next((r for r in resultados if r["id"] == "control_github"), None)
+
+    if control and control["veredicto"] != "OK":
+        resumen = ("La salida a internet de este host está rota o filtrada: falló "
+                   "hasta el objetivo de control. El resto de los resultados no "
+                   "es concluyente.")
+    elif criticos_ok:
+        resumen = "El SEPA es alcanzable desde acá. El problema no es de red."
+    else:
+        alt = [r["id"] for r in resultados
+               if not r["critico"] and r["id"] != "control_github" and r["veredicto"] == "OK"]
+        resumen = ("El SEPA NO es alcanzable desde acá. "
+                   + (f"Sí responden: {', '.join(alt)}." if alt
+                      else "Ninguna fuente alternativa respondió tampoco."))
+
+    return {
+        "ts": _ahora_iso(),
+        "corriendo_en": os.environ.get("RENDER_SERVICE_NAME") or os.environ.get("HOSTNAME"),
+        "region": os.environ.get("RENDER_REGION"),
+        "ua_por_defecto": requests.utils.default_user_agent(),
+        "duracion_ms": round((time.perf_counter() - t0) * 1000),
+        "resumen": resumen,
+        "objetivos": resultados,
+    }
+
+
 @app.get("/outliers")
 def get_outliers(
     threshold: float = Query(default=3.0, gt=0),
