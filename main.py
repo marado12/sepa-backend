@@ -5,7 +5,7 @@ Deploy: Railway / Render / Fly.io
 
 import gc
 import io, os, re, math, time, zipfile, logging, json
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 from contextlib import asynccontextmanager
 
@@ -317,6 +317,71 @@ _cache: dict = {}   # { dia: (df_suc, prod_path, fecha_str) }  — df_prod NO se
 # ParquetWriter sobre los mismos archivos, OOM en Railway.
 _descarga_lock = None          # se inicializa en el primer uso (dentro del event loop)
 _descarga_en_progreso: set[int] = set()   # días cuya descarga está activa
+
+# ── Resiliencia de la descarga (roadmap 0.2 / 0.3) ──────────────────────────
+# Antes: si la descarga del SEPA fallaba, _bg_descargar logueaba el error y lo
+# descartaba → el caché quedaba vacío, la app entera inutilizable y /api/status
+# decía "listo: false, en_progreso: false" sin explicar por qué.
+SEPA_MAX_REINTENTOS    = int(os.environ.get("SEPA_MAX_REINTENTOS", "3"))
+SEPA_BACKOFF_BASE_S    = int(os.environ.get("SEPA_BACKOFF_BASE_S", "30"))
+SEPA_FALLBACK_MAX_DIAS = int(os.environ.get("SEPA_FALLBACK_MAX_DIAS", "7"))
+
+# Estado observable de la descarga, por día. Lo consume GET /api/status.
+#   { dia: {ultimo_intento, ultimo_error, ultimo_error_ts,
+#           intentos_fallidos, ultimo_exito, proximo_reintento} }
+_estado_descarga: dict[int, dict] = {}
+
+# Días que están sirviendo datos VIEJOS porque la descarga falló.
+#   { dia: "YYYY-MM-DD" }  ← fecha real del parquet en uso
+_degradado: dict[int, str] = {}
+
+
+def _hoy() -> str:
+    return datetime.now().strftime("%Y-%m-%d")
+
+
+def _ahora_iso() -> str:
+    return datetime.now().isoformat(timespec="seconds")
+
+
+def _registrar_intento(dia: int) -> None:
+    _estado_descarga.setdefault(dia, {})["ultimo_intento"] = _ahora_iso()
+
+
+def _registrar_error(dia: int, exc: Exception) -> None:
+    e = _estado_descarga.setdefault(dia, {})
+    e["ultimo_error"]      = f"{type(exc).__name__}: {exc}"[:500]
+    e["ultimo_error_ts"]   = _ahora_iso()
+    e["intentos_fallidos"] = e.get("intentos_fallidos", 0) + 1
+
+
+def _registrar_exito(dia: int, n_suc: Optional[int] = None) -> None:
+    e = _estado_descarga.setdefault(dia, {})
+    e["ultimo_exito"]      = _ahora_iso()
+    e["ultimo_error"]      = None
+    e["intentos_fallidos"] = 0
+    e.pop("proximo_reintento", None)
+    if n_suc is not None:
+        e["n_sucursales"] = n_suc
+
+
+def _aviso_datos(dia: int) -> Optional[str]:
+    """Texto listo para mostrar en el frontend cuando los datos no son de hoy."""
+    fecha = _degradado.get(dia)
+    if not fecha:
+        return None
+    try:
+        d = datetime.strptime(fecha, "%Y-%m-%d")
+    except ValueError:
+        return f"Datos del {fecha}"
+    dias = (datetime.strptime(_hoy(), "%Y-%m-%d") - d).days
+    if dias <= 0:
+        antig = ""
+    elif dias == 1:
+        antig = " (de ayer)"
+    else:
+        antig = f" (de hace {dias} días)"
+    return f"El SEPA no respondió: mostrando precios del {d.strftime('%d/%m')}{antig}"
 
 def _prod_path_valido(prod_path: str) -> bool:
     """prod_path es ahora un JSON dict {cadena: path}. Valida que al menos uno exista."""
@@ -745,7 +810,10 @@ def _descargar_y_procesar(dia: int) -> tuple:
     zip_tmp = zip_path + ".tmp"
     log.info(f"Descargando SEPA dia {dia}: {url}")
     try:
-        resp = requests.get(url, stream=True, timeout=600)
+        # timeout=(connect, read). Antes era un único 600 que aplicaba también al
+        # connect: con el portal caído cada intento colgaba ~10 min y cualquier
+        # backoff arriba de esto era inservible.
+        resp = requests.get(url, stream=True, timeout=(15, 600))
         resp.raise_for_status()
         total_bytes = int(resp.headers.get("content-length", 0))
         descargado  = 0
@@ -989,15 +1057,112 @@ def _descargar_y_procesar(dia: int) -> tuple:
     return df_suc, json.dumps(paths_prod_final)
 
 
-def _cargar_o_descargar(dia: int) -> tuple:
-    """Devuelve (df_suc, prod_path). df_prod NO se cachea en RAM."""
-    fecha_hoy = datetime.now().strftime("%Y-%m-%d")
+def _cache_utilizable(dia: int, fecha_cache: str, prod_path: str) -> bool:
+    """
+    ¿Sirve esta entrada de caché?
+
+    Antes la condición era simplemente `fecha_cache == hoy`. Con el fallback del
+    roadmap 0.2 también aceptamos datos viejos, pero SOLO si el día está marcado
+    como degradado — así un parquet viejo no se cuela silenciosamente cuando la
+    descarga del día sí funcionó. Sin esto, cachear datos viejos haría que cada
+    request los descarte y vuelva a intentar la descarga.
+    """
+    if not _prod_path_valido(prod_path):
+        return False
+    if fecha_cache == _hoy():
+        return True
+    return _degradado.get(dia) == fecha_cache
+
+
+def _buscar_parquet_fallback(dia: int) -> Optional[tuple]:
+    """
+    Roadmap 0.2 — Busca en CACHE_DIR el parquet utilizable más reciente para
+    servir datos viejos cuando la descarga del SEPA falla.
+
+    Orden de preferencia:
+      1. Mismo día de la semana, fecha anterior (dataset equivalente).
+      2. Cualquier otro día, la fecha más reciente. Los precios del SEPA no
+         dependen del weekday — el `dia` solo selecciona promos en _analizar().
+         En Render /tmp se borra al dormirse, así que sin este paso el fallback
+         casi nunca encontraría nada.
+
+    Descarta lo más viejo que SEPA_FALLBACK_MAX_DIAS.
+    Devuelve (df_suc, prod_path_json, fecha) o None.
+    """
+    import glob, json as _json
+
+    hoy    = _hoy()
+    hoy_dt = datetime.strptime(hoy, "%Y-%m-%d")
+
+    candidatos: list[tuple[str, int, str]] = []   # (fecha, dia_archivo, cache_base)
+    for suc_path in glob.glob(os.path.join(CACHE_DIR, "sepa_dia*_*_suc.parquet")):
+        m = re.match(r"sepa_dia(\d+)_(\d{4}-\d{2}-\d{2})_suc\.parquet$",
+                     os.path.basename(suc_path))
+        if not m:
+            continue
+        dia_arch, fecha = int(m.group(1)), m.group(2)
+        if dia_arch == dia and fecha == hoy:
+            continue          # es justo el que acaba de fallar
+        try:
+            antiguedad = (hoy_dt - datetime.strptime(fecha, "%Y-%m-%d")).days
+        except ValueError:
+            continue
+        if antiguedad < 0 or antiguedad > SEPA_FALLBACK_MAX_DIAS:
+            continue
+        candidatos.append((fecha, dia_arch, suc_path[: -len("_suc.parquet")]))
+
+    if not candidatos:
+        log.warning(f"[FALLBACK] No hay parquets viejos utilizables en {CACHE_DIR}")
+        return None
+
+    # Mismo weekday primero; dentro de cada grupo, la fecha más reciente
+    candidatos.sort(key=lambda c: (
+        0 if c[1] == dia else 1,
+        -datetime.strptime(c[0], "%Y-%m-%d").toordinal(),
+    ))
+
+    for fecha, dia_arch, cache_base in candidatos:
+        suc_path   = cache_base + "_suc.parquet"
+        paths_prod = {}
+        for cad in CADENAS_KEYWORDS.keys():
+            pp = cache_base + f"_prod_{cad}.parquet"
+            if os.path.exists(pp):
+                paths_prod[cad] = pp
+        if not paths_prod:
+            continue
+        try:
+            pq.read_metadata(suc_path)
+            for pp in paths_prod.values():
+                pq.read_metadata(pp)
+            df_suc = pd.read_parquet(suc_path)
+        except Exception as e:
+            log.warning(f"[FALLBACK] Parquet {os.path.basename(cache_base)} inválido: {e}")
+            continue
+        log.warning(
+            f"[FALLBACK] Sirviendo datos VIEJOS del {fecha} (archivo del día {dia_arch}) "
+            f"para el día {dia}: {len(df_suc):,} sucursales, {len(paths_prod)} cadenas"
+        )
+        return df_suc, _json.dumps(paths_prod), fecha
+
+    log.warning("[FALLBACK] Había candidatos pero ninguno resultó legible")
+    return None
+
+
+def _cargar_o_descargar(dia: int, permitir_fallback: bool = True) -> tuple:
+    """
+    Devuelve (df_suc, prod_path). df_prod NO se cachea en RAM.
+
+    `permitir_fallback=False` lo usa _bg_descargar para que cada reintento sea
+    una descarga real: el fallback recién se aplica cuando se agotan todos.
+    """
+    fecha_hoy = _hoy()
 
     # 1. Memoria (solo df_suc + path al parquet)
     if dia in _cache:
         df_suc, prod_path, fecha_cache = _cache[dia]
-        if fecha_cache == fecha_hoy and _prod_path_valido(prod_path):
-            log.info(f"Cache en memoria dia {dia}")
+        if _cache_utilizable(dia, fecha_cache, prod_path):
+            log.info(f"Cache en memoria dia {dia}" +
+                     (f" (DEGRADADO, datos del {fecha_cache})" if dia in _degradado else ""))
             return df_suc, prod_path
 
     # 2. Disco (parquet del día de hoy)
@@ -1028,10 +1193,34 @@ def _cargar_o_descargar(dia: int) -> tuple:
             _cache.clear()
             prod_path = _json.dumps(paths_prod_cand)
             _cache[dia] = (df_suc, prod_path, fecha_hoy)
+            _degradado.pop(dia, None)   # hay parquet de hoy: ya no estamos degradados
+            # Sin esto, /api/status seguía mostrando el ultimo_error de una
+            # descarga vieja aunque los datos de hoy ya estuvieran cargados.
+            _registrar_exito(dia, len(df_suc))
             return df_suc, prod_path
 
     # 3. Descargar y procesar
-    df_suc, prod_path = _descargar_y_procesar(dia)
+    _registrar_intento(dia)
+    try:
+        df_suc, prod_path = _descargar_y_procesar(dia)
+    except Exception as e:
+        _registrar_error(dia, e)
+        log.error(f"Descarga día {dia} falló: {type(e).__name__}: {e}")
+        if not permitir_fallback:
+            raise
+        # 4. Fallback (roadmap 0.2): antes de dejar la app muerta, servir el
+        #    parquet más reciente que haya en disco, marcando que es viejo.
+        fb = _buscar_parquet_fallback(dia)
+        if fb is None:
+            raise
+        df_suc, prod_path, fecha_fb = fb
+        _cache.clear()
+        _cache[dia] = (df_suc, prod_path, fecha_fb)
+        _degradado[dia] = fecha_fb
+        return df_suc, prod_path
+
+    _registrar_exito(dia, len(df_suc))
+    _degradado.pop(dia, None)
     _cache.clear()
     _cache[dia] = (df_suc, prod_path, fecha_hoy)
     return df_suc, prod_path
@@ -1051,12 +1240,10 @@ async def _obtener_datos(dia: int) -> tuple:
     """
     import asyncio
 
-    fecha_hoy = datetime.now().strftime("%Y-%m-%d")
-
     # 1. Fast-path sin lock
     if dia in _cache:
         df_suc, prod_path, fecha_cache = _cache[dia]
-        if fecha_cache == fecha_hoy and _prod_path_valido(prod_path):
+        if _cache_utilizable(dia, fecha_cache, prod_path):
             return df_suc, prod_path
 
     lock = _get_lock()
@@ -1064,7 +1251,7 @@ async def _obtener_datos(dia: int) -> tuple:
         # 3. Double-checked locking
         if dia in _cache:
             df_suc, prod_path, fecha_cache = _cache[dia]
-            if fecha_cache == fecha_hoy and _prod_path_valido(prod_path):
+            if _cache_utilizable(dia, fecha_cache, prod_path):
                 return df_suc, prod_path
 
         if dia in _descarga_en_progreso:
@@ -1530,14 +1717,52 @@ def _bg_descargar(dia: int):
     por lo que usamos _cargar_o_descargar (sync) directamente en lugar de
     asyncio.create_task (que se pierde silenciosamente si no hay event loop activo).
     """
-    log.info(f"[BG] Iniciando descarga día {dia}")
+    log.info(f"[BG] Iniciando descarga día {dia} "
+             f"(hasta {SEPA_MAX_REINTENTOS} intentos, backoff base {SEPA_BACKOFF_BASE_S}s)")
     _descarga_en_progreso.add(dia)
     try:
-        df_suc, prod_path = _cargar_o_descargar(dia)
-        _cache[dia] = (df_suc, prod_path, datetime.now().strftime("%Y-%m-%d"))
-        log.info(f"[BG] Descarga día {dia} completada OK — {len(df_suc):,} sucursales")
-    except Exception as e:
-        log.error(f"[BG] Error descargando día {dia}: {e}", exc_info=True)
+        ultimo_exc: Optional[Exception] = None
+
+        for intento in range(1, SEPA_MAX_REINTENTOS + 1):
+            try:
+                # permitir_fallback=False: cada intento tiene que ser una descarga
+                # real, si no el primer fallo devolvería datos viejos y cortaría
+                # el ciclo de reintentos.
+                df_suc, prod_path = _cargar_o_descargar(dia, permitir_fallback=False)
+                _cache[dia] = (df_suc, prod_path, _hoy())
+                log.info(f"[BG] Descarga día {dia} OK en intento "
+                         f"{intento}/{SEPA_MAX_REINTENTOS} — {len(df_suc):,} sucursales")
+                return
+            except Exception as e:
+                ultimo_exc = e
+                log.error(f"[BG] Intento {intento}/{SEPA_MAX_REINTENTOS} falló para día {dia}: "
+                          f"{type(e).__name__}: {e}",
+                          exc_info=(intento == SEPA_MAX_REINTENTOS))
+                if intento < SEPA_MAX_REINTENTOS:
+                    espera = SEPA_BACKOFF_BASE_S * (2 ** (intento - 1))   # 30, 60, 120...
+                    _estado_descarga.setdefault(dia, {})["proximo_reintento"] = (
+                        datetime.now() + timedelta(seconds=espera)
+                    ).isoformat(timespec="seconds")
+                    log.warning(f"[BG] Reintentando día {dia} en {espera}s")
+                    # Seguro: BackgroundTasks corre en threadpool, no en el event loop.
+                    time.sleep(espera)
+
+        _estado_descarga.setdefault(dia, {}).pop("proximo_reintento", None)
+
+        # Reintentos agotados → recién ahora, datos viejos (roadmap 0.2)
+        log.error(f"[BG] Agotados {SEPA_MAX_REINTENTOS} intentos para día {dia}. "
+                  f"Buscando parquet de fallback.")
+        fb = _buscar_parquet_fallback(dia)
+        if fb is None:
+            log.error(f"[BG] Sin fallback disponible: el día {dia} queda SIN DATOS. "
+                      f"Último error: {type(ultimo_exc).__name__}: {ultimo_exc}")
+            return
+        df_suc, prod_path, fecha_fb = fb
+        _cache.clear()
+        _cache[dia] = (df_suc, prod_path, fecha_fb)
+        _degradado[dia] = fecha_fb
+        log.warning(f"[BG] Día {dia} en MODO DEGRADADO con datos del {fecha_fb} — "
+                    f"{len(df_suc):,} sucursales")
     finally:
         _descarga_en_progreso.discard(dia)
 
@@ -1551,6 +1776,9 @@ async def refresh_sepa(background_tasks: BackgroundTasks):
 
     # Invalidar cache en memoria
     _cache.pop(dia_hoy, None)
+    # Un refresh manual fuerza descarga real: salimos del modo degradado para
+    # que _cache_utilizable no siga aceptando el parquet viejo.
+    _degradado.pop(dia_hoy, None)
 
     # Limpiar parquets del día de hoy en disco para forzar re-descarga limpia.
     # Esto elimina parquets viejos (ej: generados con float32) que podrían quedar
@@ -1732,15 +1960,46 @@ def get_status():
     dia_hoy = datetime.now().weekday()
     dias_en_cache = []
     for dia, (_, prod_path, fecha) in _cache.items():
-        dias_en_cache.append({"dia": dia, "fecha": fecha, "listo": _prod_path_valido(prod_path)})
-    listo_hoy = any(d["dia"] == dia_hoy and d["listo"] for d in dias_en_cache)
+        dias_en_cache.append({
+            "dia": dia,
+            "fecha": fecha,
+            "listo": _prod_path_valido(prod_path),
+            "degradado": dia in _degradado,
+        })
+    listo_hoy   = any(d["dia"] == dia_hoy and d["listo"] for d in dias_en_cache)
     en_progreso = dia_hoy in _descarga_en_progreso
+
+    est         = _estado_descarga.get(dia_hoy, {})
+    degradado   = dia_hoy in _degradado
+    fecha_datos = _cache.get(dia_hoy, (None, None, None))[2]
+
+    if degradado:
+        origen = "cache_viejo"
+    elif listo_hoy:
+        origen = "sepa_hoy"
+    else:
+        origen = None
+
     return {
+        # ── claves existentes: el frontend las usa para el banner de caché ──
         "cache": dias_en_cache,
         "cache_dir": CACHE_DIR,
         "dia_hoy": dia_hoy,
         "listo": listo_hoy,
         "en_progreso": en_progreso,
+        # ── roadmap 0.3: por qué NO está listo ──
+        "ultimo_intento": est.get("ultimo_intento"),
+        "ultimo_error": est.get("ultimo_error"),
+        "ultimo_error_ts": est.get("ultimo_error_ts"),
+        "intentos_fallidos": est.get("intentos_fallidos", 0),
+        "ultimo_exito": est.get("ultimo_exito"),
+        "proximo_reintento": est.get("proximo_reintento"),
+        "max_reintentos": SEPA_MAX_REINTENTOS,
+        # ── roadmap 0.2: qué datos estamos sirviendo ──
+        "datos_degradados": degradado,
+        "fecha_datos": fecha_datos,
+        "origen": origen,
+        "aviso_datos": _aviso_datos(dia_hoy),
     }
 
 
@@ -1973,7 +2232,9 @@ async def comparar(req: ComparacionRequest):
         "optimo": optimo,
         "n_precios": len(precios),
         "fecha_datos": fecha_datos,   # cuándo se descargó el ZIP del SEPA
-
+        # roadmap 0.2: True si estos precios NO son de hoy porque el SEPA falló
+        "datos_degradados": dia in _degradado,
+        "aviso_datos": _aviso_datos(dia),
     }
 
 
@@ -2163,7 +2424,7 @@ def diagnostico_zip(dia: int = 1, n_inner: int = 3):
 
     try:
         log.info(f"[diag] Descargando ZIP dia {dia}...")
-        resp = requests.get(url, stream=True, timeout=600)
+        resp = requests.get(url, stream=True, timeout=(15, 600))
         resp.raise_for_status()
         with open(zip_path, "wb") as f:
             for chunk in resp.iter_content(chunk_size=4 * 1024 * 1024):
