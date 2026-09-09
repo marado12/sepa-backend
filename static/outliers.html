@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Outliers de Precios — SEPA</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,sans-serif;background:#f4f6f9;color:#1a1a2e;min-height:100vh}
+  header{background:#1a1a2e;padding:.85rem 1.5rem;display:flex;align-items:center;gap:.75rem}
+  header h1{font-size:15px;font-weight:500;color:#fff}
+  header span.sub{font-size:12px;color:rgba(255,255,255,.5)}
+  #status-tag{margin-left:auto;font-size:11px;padding:2px 8px;border-radius:6px;background:rgba(255,255,255,.1);color:rgba(255,255,255,.6)}
+  .container{max-width:1200px;margin:0 auto;padding:1.25rem}
+  .panel{background:#fff;border-radius:10px;border:0.5px solid #e2e2e2;overflow:hidden;margin-bottom:1rem}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;padding:.85rem 1rem;border-bottom:0.5px solid #e9e9e9}
+  .controls label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:#777;font-weight:500;text-transform:uppercase;letter-spacing:.04em}
+  .controls input,.controls select{font-size:13px;padding:6px 9px;border:0.5px solid #d0d0d0;border-radius:6px;background:#fff;color:#1a1a2e;width:140px}
+  .controls input:focus,.controls select:focus{outline:none;border-color:#4f46e5}
+  .controls button{font-size:13px;padding:0 16px;height:36px;background:#4f46e5;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:500}
+  .controls button:hover{background:#4338ca}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;padding:.85rem 1rem;border-bottom:0.5px solid #e9e9e9;background:#fafafa}
+  .card{background:#fff;border-radius:8px;padding:.65rem .85rem;border:0.5px solid #e9e9e9}
+  .card .lbl{font-size:10px;color:#999;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+  .card .val{font-size:20px;font-weight:500;color:#1a1a2e}
+  .card.danger .val{color:#dc2626}
+  .table-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  thead th{background:#fafafa;padding:.55rem .85rem;text-align:left;font-weight:500;font-size:11px;color:#888;white-space:nowrap;border-bottom:0.5px solid #e9e9e9;text-transform:uppercase;letter-spacing:.04em}
+  tbody td{padding:.55rem .85rem;border-bottom:0.5px solid #f0f0f0;color:#1a1a2e}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:#fafafa}
+  .ratio-high{color:#dc2626;font-weight:500}
+  .ratio-med{color:#d97706;font-weight:500}
+  .empty{text-align:center;padding:2.5rem;color:#aaa;font-size:13px}
+  .desc-cell{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .badge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:5px;background:#f0f0f0;color:#555;font-weight:500}
+  .num{font-variant-numeric:tabular-nums}
+  #n-showing{font-size:11px;color:#aaa;padding:.5rem 1rem;border-top:0.5px solid #f0f0f0;text-align:right;background:#fafafa}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Outliers de precios</h1>
+  <span class="sub">Precios anómalos entre cadenas — SEPA</span>
+  <span id="status-tag">sin datos</span>
+</header>
+
+<div class="container">
+  <div class="panel">
+    <div class="controls">
+      <label>Threshold (× mediana)
+        <input type="number" id="threshold" value="3" min="1" step="0.5">
+      </label>
+      <label>Cadena
+        <select id="cadena"><option value="">Todas</option></select>
+      </label>
+      <label>Descripción
+        <input type="text" id="descripcion" placeholder="ej: leche">
+      </label>
+      <label>Límite de filas
+        <input type="number" id="limit" value="100" min="10" max="1000" step="10">
+      </label>
+      <button onclick="fetchOutliers()">Analizar</button>
+    </div>
+
+    <div class="cards">
+      <div class="card"><div class="lbl">Outliers</div><div class="val" id="c-total">—</div></div>
+      <div class="card"><div class="lbl">Productos únicos</div><div class="val" id="c-prods">—</div></div>
+      <div class="card"><div class="lbl">Cadenas</div><div class="val" id="c-cadenas">—</div></div>
+      <div class="card danger"><div class="lbl">Ratio máximo</div><div class="val" id="c-ratio">—</div></div>
+      <div class="card danger"><div class="lbl">Más anómalo</div><div class="val" style="font-size:11px;line-height:1.4;padding-top:2px" id="c-nombre">—</div></div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Descripción original</th>
+            <th>Desc. normalizada</th>
+            <th>Cadena</th>
+            <th>Precio</th>
+            <th>Mediana</th>
+            <th>Ratio</th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr><td colspan="7" class="empty">Presioná Analizar para cargar datos.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div id="n-showing"></div>
+  </div>
+</div>
+
+<script>
+async function loadCadenas() {
+  try {
+    const r = await fetch('/outliers/cadenas');
+    const d = await r.json();
+    const sel = document.getElementById('cadena');
+    (d.cadenas || []).forEach(c => {
+      const o = document.createElement('option');
+      o.value = o.text = c;
+      sel.appendChild(o);
+    });
+  } catch(e) {}
+}
+
+async function fetchOutliers() {
+  const threshold   = document.getElementById('threshold').value;
+  const cadena      = document.getElementById('cadena').value;
+  const descripcion = document.getElementById('descripcion').value.trim();
+  const limit       = document.getElementById('limit').value;
+
+  const params = new URLSearchParams({ threshold, limit });
+  if (cadena)      params.append('cadena', cadena);
+  if (descripcion) params.append('descripcion', descripcion);
+
+  document.getElementById('status-tag').textContent = 'cargando...';
+  try {
+    const r = await fetch(`/outliers?${params}`);
+    if (!r.ok) { const e = await r.json(); throw new Error(e.detail || r.statusText); }
+    const data = await r.json();
+    renderSummary(data.resumen);
+    renderTable(data.outliers);
+    document.getElementById('status-tag').textContent =
+      'actualizado ' + new Date().toLocaleTimeString('es-AR');
+  } catch(e) {
+    document.getElementById('status-tag').textContent = 'error: ' + e.message;
+  }
+}
+
+function renderSummary(r) {
+  document.getElementById('c-total').textContent   = r.total_outliers      ?? '—';
+  document.getElementById('c-prods').textContent   = r.productos_afectados ?? '—';
+  document.getElementById('c-cadenas').textContent = r.cadenas_afectadas   ?? '—';
+  document.getElementById('c-ratio').textContent   = r.ratio_max != null ? r.ratio_max + 'x' : '—';
+  document.getElementById('c-nombre').textContent  = r.producto_mas_anomalo ?? '—';
+}
+
+function fmt(n) {
+  return parseFloat(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function renderTable(rows) {
+  const tbody = document.getElementById('tbody');
+  const nShow = document.getElementById('n-showing');
+  if (!rows || !rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">Sin outliers con estos parametros.</td></tr>';
+    nShow.textContent = '';
+    return;
+  }
+  nShow.textContent = 'Mostrando ' + rows.length + ' resultado' + (rows.length !== 1 ? 's' : '');
+  tbody.innerHTML = rows.map((row, i) => {
+    const ratio    = parseFloat(row.ratio).toFixed(2);
+    const rc       = ratio >= 5 ? 'ratio-high' : ratio >= 3 ? 'ratio-med' : '';
+    const desc     = row.descripcion || '—';
+    const descNorm = row.desc_norm   || '—';
+    const cadena   = row.cadena      || '—';
+    return `<tr>
+      <td style="color:#bbb;font-size:11px">${i + 1}</td>
+      <td class="desc-cell" title="${desc}">${desc}</td>
+      <td class="desc-cell" title="${descNorm}" style="color:#888">${descNorm}</td>
+      <td><span class="badge">${cadena}</span></td>
+      <td class="num">$${fmt(row.precio)}</td>
+      <td class="num" style="color:#aaa">$${fmt(row.mediana_producto)}</td>
+      <td class="num ${rc}">${ratio}x</td>
+    </tr>`;
+  }).join('');
+}
+
+loadCadenas();
+</script>
+</body>
+</html>
