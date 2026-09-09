@@ -21,6 +21,10 @@ from pydantic import BaseModel
 
 from outliers import detect_outliers, outlier_summary, load_all_chains, PARQUET_DIR
 
+import sucursales
+from fuentes import FuenteCompuesta, FuenteCoto, FuenteVTEX
+from precios_vtex import buscar_precios_online
+
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
@@ -65,6 +69,23 @@ def _guardar_precios_manuales(data: dict) -> None:
     with open(PRECIOS_MANUALES_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
+
+# ── Selección de fuente de precios ────────────────────────────────
+# El 09/09/2026 el SEPA se cayó (ICMP responde, TCP :443 no, desde Argentina,
+# Render y Azure) y la app quedó inutilizable por depender de un solo origen.
+#
+#   "sepa"   → solo SEPA. Comportamiento idéntico al de antes de este cambio.
+#   "online" → solo tiendas online (VTEX + Coto). Trae la oferta web y las
+#              promos bancarias, pero no distingue entre sucursales.
+#   "auto"   → SEPA si tiene datos; si falla o no encuentra nada, online.
+FUENTE_PRECIOS = os.environ.get("FUENTE_PRECIOS", "auto").strip().lower()
+
+# Jumbo y Disco NO están en data/sucursales.csv: el SEPA no los reportaba en el
+# snapshot del que salió el catálogo. Sus APIs online sí responden.
+# Por defecto NO se consultan: recomendar un Jumbo a 200 km rompe la promesa del
+# producto ("la compra óptima cerca tuyo"), que es peor que no ofrecerlo. Se
+# reportan aparte en la respuesta para que la ausencia sea visible y no silenciosa.
+INCLUIR_CADENAS_SIN_GEO = os.environ.get("INCLUIR_CADENAS_SIN_GEO", "0") == "1"
 
 SEPA_URLS = {
     0: "https://datos.produccion.gob.ar/dataset/6f47ec76-d1ce-4e34-a7e1-621fe9b1d0b5/resource/0a9069a9-06e8-4f98-874d-da5578693290/download/sepa_lunes.zip",
@@ -2000,6 +2021,10 @@ def get_status():
         "fecha_datos": fecha_datos,
         "origen": origen,
         "aviso_datos": _aviso_datos(dia_hoy),
+        # ── roadmap 4.2: fuente de precios y catálogo geográfico ──
+        "fuente_precios": FUENTE_PRECIOS,
+        "cadenas_online": sorted(FuenteCompuesta(FuenteVTEX(), FuenteCoto()).cadenas_soportadas()),
+        "catalogo_sucursales": sucursales.resumen(),
     }
 
 
@@ -2148,6 +2173,114 @@ def buscar_productos(q: str = "", limite: int = 8):
         return {"sugerencias": []}
 
 
+# ─────────────────────────────────────────────
+#  RESOLUCIÓN DE FUENTE (roadmap 4.2)
+# ─────────────────────────────────────────────
+
+_fuente_online = None
+
+
+def _get_fuente_online():
+    """Instancia perezosa: si nunca se usa el modo online, no se crea nada."""
+    global _fuente_online
+    if _fuente_online is None:
+        _fuente_online = FuenteCompuesta(FuenteVTEX(), FuenteCoto())
+    return _fuente_online
+
+
+def _cadenas_a_consultar(lat, lon, radio_km) -> tuple[list, dict]:
+    """
+    Qué cadenas preguntar, según el catálogo estático de sucursales.
+
+    Devuelve (cadenas, info). El catálogo no depende de la red: es la mitad del
+    diseño que permite que la app degrade en vez de morir cuando cae la fuente
+    de precios.
+    """
+    soportadas = set(_get_fuente_online().cadenas_soportadas())
+    con_geo = set(sucursales.resumen()["por_cadena"])
+    sin_geo = sorted(soportadas - con_geo)
+
+    if lat is None or lon is None:
+        # Sin coordenadas no hay filtro posible; se consultan todas.
+        info = {"filtro_geografico": False, "motivo": "sin lat/lon",
+                "cadenas_sin_geo": sin_geo}
+        return sorted(soportadas), info
+
+    cerca = sucursales.cadenas_cerca(lat, lon, radio_km)
+    elegidas = [c for c in cerca if c in soportadas]
+    if INCLUIR_CADENAS_SIN_GEO:
+        elegidas += sin_geo
+
+    return sorted(set(elegidas)), {
+        "filtro_geografico": True,
+        "radio_km": radio_km,
+        "distancias_km": cerca,
+        "cadenas_sin_geo": sin_geo,
+        "cadenas_sin_geo_incluidas": INCLUIR_CADENAS_SIN_GEO,
+    }
+
+
+async def _resolver_precios(req, dia: int, canasta: list) -> tuple[dict, dict]:
+    """
+    Obtiene precios de la fuente que corresponda. Devuelve (precios, meta).
+
+    `precios` tiene siempre la forma que consume el optimizador, venga de donde
+    venga: {(cadena, producto): {"precio_min": float, "precio_por_100u": ...}}.
+    Por eso `_analizar` y `_canasta_optima` no se tocaron.
+    """
+    import asyncio
+
+    modo = FUENTE_PRECIOS if FUENTE_PRECIOS in ("sepa", "online", "auto") else "auto"
+    meta = {"fuente_modo": modo, "origen_precios": None}
+
+    # ── SEPA ──
+    if modo in ("sepa", "auto"):
+        try:
+            df_suc, prod_path = await _obtener_datos(dia)
+            precios = _buscar_precios(
+                df_suc, prod_path, canasta,
+                lat=req.lat, lon=req.lon, radio_km=req.radio_km,
+                provincia=req.provincia,
+            )
+            if precios:
+                meta.update(origen_precios="sepa",
+                            fecha_datos=_cache.get(dia, (None, None, None))[2],
+                            datos_degradados=dia in _degradado,
+                            aviso=_aviso_datos(dia))
+                return precios, meta
+            if modo == "sepa":
+                return {}, meta
+            log.warning("[fuente] SEPA sin precios para la canasta — probando online")
+            meta["sepa_sin_precios"] = True
+        except Exception as e:
+            if modo == "sepa":
+                raise
+            log.warning("[fuente] SEPA no disponible (%s: %s) — cayendo a online",
+                        type(e).__name__, e)
+            meta["sepa_error"] = f"{type(e).__name__}: {str(e)[:150]}"
+
+    # ── Online ──
+    cadenas, info_geo = _cadenas_a_consultar(req.lat, req.lon, req.radio_km)
+    meta["geo"] = info_geo
+    if not cadenas:
+        meta["origen_precios"] = "online"
+        meta["aviso"] = ("No hay sucursales de cadenas conocidas en el radio elegido. "
+                         "Probá aumentarlo.")
+        return {}, meta
+
+    loop = asyncio.get_event_loop()
+    precios, meta_online = await loop.run_in_executor(
+        None,
+        lambda: buscar_precios_online(
+            canasta, cadenas, _get_fuente_online(),
+            normalizar, _extraer_cantidades_desc,
+        ),
+    )
+    meta.update(meta_online)
+    meta["origen_precios"] = "online"
+    return precios, meta
+
+
 @app.post("/api/comparar")
 async def comparar(req: ComparacionRequest):
     t0 = time.perf_counter()
@@ -2156,14 +2289,6 @@ async def comparar(req: ComparacionRequest):
 
     if req.lat is None and req.lon is None and req.provincia is None:
         raise HTTPException(400, "Requerido: lat+lon o provincia")
-
-    try:
-        df_suc, prod_path = await _obtener_datos(dia)
-    except HTTPException:
-        raise
-    except Exception as e:
-        log.error(f"Error cargando SEPA: {e}")
-        raise HTTPException(503, f"Error cargando datos SEPA: {str(e)}")
 
     canasta = [p.model_dump() for p in req.canasta] if req.canasta else CANASTA_DEFAULT
 
@@ -2189,19 +2314,20 @@ async def comparar(req: ComparacionRequest):
     else:
         promos = []
 
-    precios = _buscar_precios(
-        df_suc, prod_path, canasta,
-        lat=req.lat, lon=req.lon, radio_km=req.radio_km,
-        provincia=req.provincia
-    )
+    try:
+        precios, meta_fuente = await _resolver_precios(req, dia, canasta)
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error(f"Error obteniendo precios: {e}")
+        raise HTTPException(503, f"Error obteniendo precios: {str(e)}")
 
     if not precios:
-        raise HTTPException(
-            404,
-            f"No se encontraron sucursales de las cadenas conocidas dentro de {req.radio_km:.0f} km de tu ubicación. "
-            f"El SEPA puede no tener cobertura en esta zona. "
-            f"Probá aumentar el radio de búsqueda o consultá el endpoint /api/diagnostico-sucursales para ver qué hay disponible."
+        detalle = meta_fuente.get("aviso") or (
+            f"No se encontraron precios dentro de {req.radio_km:.0f} km de tu ubicación."
         )
+        raise HTTPException(404, f"{detalle} Probá aumentar el radio de búsqueda. "
+                                 f"(fuente: {meta_fuente.get('origen_precios') or 'ninguna'})")
 
     resultado    = _analizar(canasta, precios, promos, dia)
     optimo       = _canasta_optima(canasta, precios)
@@ -2216,9 +2342,13 @@ async def comparar(req: ComparacionRequest):
     log.info(f"/comparar completado en {elapsed:.1f}s")
 
     fecha_datos = _cache.get(dia, (None, None, None))[2]   # "YYYY-MM-DD" o None
+    online = meta_fuente.get("origen_precios") == "online"
 
     return {
         "dia": dia,
+        # roadmap 4.2: de dónde salieron estos precios
+        "origen_precios": meta_fuente.get("origen_precios"),
+        "fuente": meta_fuente,
         "elapsed_s": round(elapsed, 2),
         "ranking": [
             {
@@ -2233,8 +2363,9 @@ async def comparar(req: ComparacionRequest):
         "n_precios": len(precios),
         "fecha_datos": fecha_datos,   # cuándo se descargó el ZIP del SEPA
         # roadmap 0.2: True si estos precios NO son de hoy porque el SEPA falló
-        "datos_degradados": dia in _degradado,
-        "aviso_datos": _aviso_datos(dia),
+        "datos_degradados": (dia in _degradado) and not online,
+        # Con precios online el aviso viene del resultado de la fuente, no del caché SEPA.
+        "aviso_datos": meta_fuente.get("aviso") if online else _aviso_datos(dia),
     }
 
 
