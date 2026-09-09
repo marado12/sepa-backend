@@ -5,13 +5,13 @@ No usa red: consume las fixtures capturadas en fixtures/*.json con el navegador.
 El parseo (`FuenteVTEX._a_oferta`), el scoring (`precios_vtex.puntuar`) y el
 pipeline (`buscar_precios_online`) son EXACTAMENTE los del backend.
 """
-import json, sys
+import json, re, sys
 from pathlib import Path
 
-from fuentes import FuenteVTEX, Oferta, Resultado
+from fuentes import FuenteCoto, FuenteVTEX, Oferta, Resultado
 import precios_vtex
 from precios_vtex import buscar_precios_online, puntuar
-from helpers_main import normalizar, _extraer_cantidades_desc
+from main import normalizar, _extraer_cantidades_desc
 
 FIX = Path(__file__).parent / "fixtures"
 
@@ -43,23 +43,68 @@ def a_producto_vtex(fila, teasers_reales=False):
     }
 
 
+# Coto no es VTEX (Oracle/Endeca): su fixture no tiene la forma de `a_producto_vtex`,
+# tiene la ruta real contents[].Main[].contents[].records[].records[0].attributes
+# que espera `FuenteCoto._parsear`. El fixture además guarda `dtoDescuentos` ya
+# "resumido" a texto legible (ej. "35%Dto | Llevando 2 | 1778.88"), no el JSON crudo
+# que `_promos()` espera parsear — se reconstruye solo cuando el resumido trae una
+# marca de descuento reconocible (%Dto o NxM); si es apenas el precio repetido, se
+# asume sin promo. No hay forma de recuperar el JSON exacto desde el resumido.
+_PATRON_DESCUENTO_COTO = re.compile(r"^\d+(%Dto|x\d+)")
+
+
+def _dto_coto_a_json(resumido):
+    if not resumido or not _PATRON_DESCUENTO_COTO.match(resumido):
+        return "[]"
+    partes = [p.strip() for p in resumido.split("|")]
+    d = {"textoDescuento": partes[0]}
+    if len(partes) > 1 and partes[1].lower().startswith("llevando"):
+        d["textoLlevando"] = partes[1]
+    return json.dumps([d])
+
+
+def a_producto_coto(fila):
+    """Rearma un nodo `records` de Coto para que lo parsee `_parsear()` sin tocarla."""
+    nombre, marca, ean, activo, referencia, dto = fila
+    attrs = {
+        "product.description": [nombre],
+        "product.brand": [marca] if marca else [],
+        "product.eanPrincipal": [ean] if ean else [],
+        "sku.activePrice": [str(activo)],
+        "sku.referencePrice": [str(referencia)] if referencia is not None else [],
+        "product.dtoDescuentos": [_dto_coto_a_json(dto)],
+    }
+    return {"records": [{"attributes": attrs}]}
+
+
+def ofertas_coto_de_filas(filas):
+    raw = {"contents": [{"Main": [{"contents": [{"records": [
+        a_producto_coto(fila) for fila in filas
+    ]}]}]}]}
+    return FuenteCoto._parsear(raw)
+
+
 def cargar(cadenas, teasers_reales=False):
     """{cadena: {consulta: [Oferta]}} usando el parser real del backend."""
     out = {}
     for cadena, archivo in cadenas.items():
         p = FIX / archivo
         if not p.exists():
+            print(f"  ⚠ falta {archivo}: {cadena} queda fuera del reporte (no cuenta como cadena sin datos)")
             continue
         data = json.loads(p.read_text(encoding="utf-8"))
         porq = {}
         for q, filas in data.items():
             if q.startswith("__"):
                 continue
-            ofertas = []
-            for fila in filas:
-                of = FuenteVTEX._a_oferta(cadena, a_producto_vtex(fila, teasers_reales))
-                if of:
-                    ofertas.append(of)
+            if cadena == "Coto":
+                ofertas = ofertas_coto_de_filas(filas)
+            else:
+                ofertas = []
+                for fila in filas:
+                    of = FuenteVTEX._a_oferta(cadena, a_producto_vtex(fila, teasers_reales))
+                    if of:
+                        ofertas.append(of)
             porq[q] = ofertas
         out[cadena] = porq
     return out
@@ -149,7 +194,7 @@ def top_candidatos(datos, cadena, nombre_item, n=8):
 
 if __name__ == "__main__":
     CAD = {"Carrefour": "carrefour.json", "Día": "dia.json", "Vea": "vea.json",
-           "Chango Más": "changomas.json", "Coto": "coto.json"}
+           "Chango Más": "changomas.json", "Coto": "coto_estructura_real.json"}
     datos = cargar(CAD)
     disponibles = [c for c in CAD if c in datos]
     if len(sys.argv) > 1 and sys.argv[1] == "top":

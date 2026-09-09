@@ -1,0 +1,4 @@
+# Solo para tests locales / CI. NO se instala en Render (requirements.txt son
+# los 512 MB del plan free) — ver CLAUDE.md de esta carpeta.
+httpx==0.28.1      # TestClient de FastAPI (test_integracion_fuentes.py)
+pytest==9.1.1      # test_snapshot_catalogo.py es pytest puro, no un script con __main__
