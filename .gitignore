@@ -4,3 +4,7 @@ __pycache__/
 *.pyo
 .env
 *.log
+
+# Snapshots del catálogo: se regeneran todos los días y pesan.
+# El repo no es el lugar donde viven; van a un object store o a un Release asset.
+data/snapshots/
