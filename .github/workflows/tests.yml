@@ -36,6 +36,7 @@ jobs:
         python test_fuentes.py
         python test_sucursales.py
         python test_precios_vtex.py
+        python test_promos_sitio.py
         python test_integracion_fuentes.py
 
     # sucursales.py está escrito con csv de stdlib a propósito: tiene que poder

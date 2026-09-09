@@ -24,6 +24,7 @@ from outliers import detect_outliers, outlier_summary, load_all_chains, PARQUET_
 import sucursales
 from fuentes import FuenteCompuesta, FuenteCoto, FuenteVTEX
 from precios_vtex import buscar_precios_online
+import promos_sitio
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -1560,9 +1561,22 @@ def _buscar_precios(df_suc, prod_path, canasta, lat=None, lon=None, radio_km=5.0
     return precios
 
 
-def _analizar(canasta, precios, promos, dia):
+def _analizar(canasta, precios, promos, dia, promos_sitio_por_cadena=None):
     """
     Calcula totales y mejor promo por cadena.
+
+    PRECEDENCIA DE PROMOS (roadmap 4.1)
+    -----------------------------------
+    Si la cadena trae promos del sitio (los `Teasers` de VTEX), ESAS mandan y
+    las de `PROMOS_DEFAULT` se ignoran para esa cadena. Las hardcodeadas son un
+    fallback para las cadenas de las que el sitio no dijo nada.
+
+    El motivo: una promo cargada a mano hace meses puede estar vencida, y una
+    promo vencida produce una recomendación equivocada que el usuario no puede
+    detectar. El dato del sitio es de hoy por construcción.
+
+    El reintegro del sitio se calcula solo sobre los productos que traen la
+    promo, no sobre el total: un Teaser es por producto.
 
     Cada promo puede tener un campo 'medio' ("credito"|"debito"|"billetera"|"cualquiera").
     Solo se aplica si el medio coincide con lo que el usuario declaró tener,
@@ -1611,6 +1625,18 @@ def _analizar(canasta, precios, promos, dia):
                 mejor_r, mejor_promo = r, pr["nombre"]
                 mejor_cuotas = 0  # un reintegro real supera siempre a las cuotas
 
+        # ── El sitio le gana a lo hardcodeado (roadmap 4.1) ──
+        origen_promo = "manual" if mejor_promo else None
+        banco_promo = None
+        del_sitio = (promos_sitio_por_cadena or {}).get(cadena)
+        if del_sitio:
+            n_sitio, r_sitio, c_sitio, b_sitio = promos_sitio.reintegro_para(
+                cadena, del_sitio, detalle)
+            if n_sitio:
+                # Pisa a la manual incluso si da menos reintegro: es el dato vigente.
+                mejor_promo, mejor_r, mejor_cuotas = n_sitio, r_sitio, c_sitio
+                origen_promo, banco_promo = "sitio", b_sitio
+
         if total > 0:
             resultado[cadena] = {
                 "total_base": round(total, 2),
@@ -1618,6 +1644,9 @@ def _analizar(canasta, precios, promos, dia):
                 "total_final": round(total - mejor_r, 2),
                 "mejor_promo": mejor_promo,
                 "mejor_cuotas_sin_interes": mejor_cuotas,
+                # roadmap 4.1: de dónde salió la promo que se aplicó
+                "origen_promo": origen_promo,
+                "banco_promo": banco_promo,
                 "n_encontrados": n,
                 "n_total": len(canasta),
                 "detalle": detalle,
@@ -2329,7 +2358,11 @@ async def comparar(req: ComparacionRequest):
         raise HTTPException(404, f"{detalle} Probá aumentar el radio de búsqueda. "
                                  f"(fuente: {meta_fuente.get('origen_precios') or 'ninguna'})")
 
-    resultado    = _analizar(canasta, precios, promos, dia)
+    # roadmap 4.1: promos del sitio, que le ganan a PROMOS_DEFAULT.
+    # Con precios del SEPA esto queda vacío y el comportamiento es el de antes.
+    promos_del_sitio = promos_sitio.extraer(precios)
+
+    resultado    = _analizar(canasta, precios, promos, dia, promos_del_sitio)
     optimo       = _canasta_optima(canasta, precios)
 
     # Ordenar cadenas por total_final
@@ -2349,6 +2382,8 @@ async def comparar(req: ComparacionRequest):
         # roadmap 4.2: de dónde salieron estos precios
         "origen_precios": meta_fuente.get("origen_precios"),
         "fuente": meta_fuente,
+        # roadmap 4.1: promos leídas del sitio, por cadena
+        "promos_sitio": promos_sitio.a_json(promos_del_sitio),
         "elapsed_s": round(elapsed, 2),
         "ranking": [
             {

@@ -177,6 +177,95 @@ def test_sin_precios_devuelve_404_con_motivo():
     assert "online" in r.json()["detail"]
 
 
+# ── Promos del sitio (roadmap 4.1) ───────────────────────────────
+class FuenteConPromos:
+    """Ofertas con Teasers, como los devuelve VTEX."""
+    nombre = "promos"
+    def __init__(self, teasers): self.teasers = teasers
+    def cadenas_soportadas(self):
+        return ["Carrefour", "Chango Más", "Coto", "Día", "Disco", "Jumbo", "Vea"]
+    def buscar(self, query, cadenas=None):
+        cs = list(cadenas or self.cadenas_soportadas())
+        return Resultado(
+            ofertas=[Oferta(cadena=c, producto="Aceite de girasol Cocinero 1.5 L",
+                            precio=10000.0, precio_lista=10000.0, origen="vtex",
+                            promos=self.teasers.get(c, []))
+                     for c in cs],
+            consultadas=cs)
+
+
+def test_promo_del_sitio_le_gana_a_la_hardcodeada():
+    """
+    Regla de precedencia: el sitio manda. Junín es miércoles-independiente, así
+    que forzamos día 2 (miércoles), cuando PROMOS_DEFAULT tiene BNA 30% para
+    Chango Más. Si el sitio dice 10%, gana el 10%: es el dato vigente.
+    """
+    main = cargar_main("online")
+    fuente = FuenteConPromos({"Chango Más": ["10% Banco Galicia"]})
+    with patch.object(main, "_get_fuente_online", return_value=fuente):
+        r = _pedir(main, dia=2, bancos_seleccionados=[
+            {"banco_id": "Banco Nación", "medios": ["credito"]}])
+    assert r.status_code == 200, r.text
+    fila = next(x for x in r.json()["ranking"] if x["cadena"] == "Chango Más")
+    assert fila["origen_promo"] == "sitio"
+    assert fila["mejor_promo"] == "10% Banco Galicia"
+    assert fila["banco_promo"] == "Banco Galicia"
+    # subtotal = 10000 * cantidad 1.5 = 15000 -> 10% = 1500.
+    # Con la promo manual (BNA 30% miércoles) habrían sido 4500.
+    assert fila["reintegro"] == 1500.0
+
+
+def test_cadena_sin_promo_del_sitio_usa_la_manual():
+    """El fallback sigue vivo para las cadenas de las que el sitio no dice nada."""
+    main = cargar_main("online")
+    fuente = FuenteConPromos({"Chango Más": ["10% Banco Galicia"]})   # Día sin teaser
+    with patch.object(main, "_get_fuente_online", return_value=fuente):
+        r = _pedir(main, dia=4, bancos_seleccionados=[
+            {"banco_id": "Banco Nación", "medios": ["credito"]}])
+    fila = next(x for x in r.json()["ranking"] if x["cadena"] == "Día")
+    assert fila["origen_promo"] == "manual"
+    assert fila["reintegro"] > 0                # BNA 20% viernes Día
+
+
+def test_segunda_unidad_no_infla_el_reintegro():
+    """La trampa: '2da unidad 70%' no puede aplicarse al total."""
+    main = cargar_main("online")
+    fuente = FuenteConPromos({"Día": ["2da unidad 70%"]})
+    with patch.object(main, "_get_fuente_online", return_value=fuente):
+        r = _pedir(main, dia=0)                 # lunes: sin promo manual para Día
+    fila = next(x for x in r.json()["ranking"] if x["cadena"] == "Día")
+    assert fila["mejor_promo"] == "2da unidad 70%"
+    assert fila["reintegro"] == 0.0, "70% del total serían $7.000 de ahorro falso"
+    assert fila["total_final"] == fila["total_base"]
+
+
+def test_promos_sitio_se_exponen_en_la_respuesta():
+    main = cargar_main("online")
+    fuente = FuenteConPromos({"Día": ["Tarjeta Carrefour 15%"]})
+    with patch.object(main, "_get_fuente_online", return_value=fuente):
+        r = _pedir(main)
+    ps = r.json()["promos_sitio"]
+    assert "Día" in ps
+    assert ps["Día"][0]["descuento_pct"] == 15.0
+    assert ps["Día"][0]["aplicable_al_total"] is True
+
+
+def test_con_sepa_las_promos_del_sitio_no_existen():
+    """Sin Teasers, el comportamiento de promos es exactamente el de antes."""
+    main = cargar_main("sepa")
+    precios = {("Día", "aceite girasol"): {"precio_min": 10000.0, "precio_por_100u": None}}
+    with patch.object(main, "_obtener_datos", return_value=(None, "/fake.parquet")), \
+         patch.object(main, "_buscar_precios", return_value=precios):
+        r = _pedir(main, dia=4, bancos_seleccionados=[
+            {"banco_id": "Banco Nación", "medios": ["credito"]}])
+    d = r.json()
+    assert d["promos_sitio"] == {}
+    fila = d["ranking"][0]
+    assert fila["origen_promo"] == "manual"
+    assert fila["reintegro"] == 3000.0          # BNA 20% viernes Día sobre 15000
+
+
+
 if __name__ == "__main__":
     fallos = 0
     for nombre, fn in sorted(globals().items()):
