@@ -1,21 +1,70 @@
+# Corre la suite en cada push y en cada PR.  Roadmap T.2.
+#
+# Todos los tests corren SIN RED (mockean las requests), así que el runner no
+# depende de que el SEPA ni las cadenas estén arriba.
+
 name: Run Tests
 
-on: [push]
+on:
+  push:
+  pull_request:          # que un PR se pueda revisar ya con el resultado a la vista
+  workflow_dispatch:     # y poder dispararlo a mano
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
     - uses: actions/checkout@v4
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: '3.11.9'    # el mismo que Render (.python-version)
+        cache: pip
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        # Solo para tests: TestClient de FastAPI lo necesita. No va a producción.
+        pip install httpx
+
     - name: Run tests
       run: |
+        python test_resiliencia.py    # roadmap 0.2/0.3 — faltaba en la lista
         python test_fuentes.py
         python test_sucursales.py
+        python test_precios_vtex.py
+        python test_integracion_fuentes.py
+
+    # sucursales.py está escrito con csv de stdlib a propósito: tiene que poder
+    # cargar aunque el pipeline de parquet esté roto, que es justamente el
+    # escenario que ese módulo existe para cubrir. Sin este check, cualquiera le
+    # agrega un `import pandas` sin darse cuenta y la propiedad se pierde en silencio.
+    - name: sucursales.py no depende de pandas ni pyarrow
+      run: |
+        python - <<'PY'
+        import sys
+        for mod in ("pandas", "pyarrow", "numpy", "requests"):
+            sys.modules[mod] = None      # importarlo revienta
+        import sucursales
+        print("OK: sucursales.py carga solo con stdlib")
+        print("sucursales en el catálogo:", sucursales.resumen()["total"])
+        PY
+
+    - name: El catálogo de sucursales es válido
+      run: |
+        python - <<'PY'
+        import sucursales
+        r = sucursales.resumen()
+        assert r["existe"], "falta data/sucursales.csv"
+        assert r["total"] > 1000, f"solo {r['total']} sucursales, parece truncado"
+        for cadena in ("Día", "Carrefour", "Vea", "Coto", "Chango Más"):
+            assert cadena in r["por_cadena"], f"falta la cadena {cadena}"
+        # Junín: el problema abierto #2, como test de regresión
+        cerca = sucursales.cadenas_cerca(-34.58731, -60.93391, 5)
+        assert "Vea" in cerca, "Vea debería aparecer a ~1.5 km de Junín"
+        print(f"OK: {r['total']} sucursales — {r['por_cadena']}")
+        print(f"Junín r=5km: {cerca}")
+        PY
