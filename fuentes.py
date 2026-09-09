@@ -15,6 +15,7 @@ No agrega dependencias: usa `requests`, que ya está en requirements.txt.
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -115,12 +116,67 @@ VTEX_BASES = {
     "Chango Más": "https://www.masonline.com.ar",
 }
 
-# VTEX suele cortar en 50 por página. PENDIENTE de confirmar con
-# scripts/medir_vtex.py — hasta entonces, valor conservador.
-VTEX_PAGINA = 24
+# MEDIDO el 09/09/2026 contra Carrefour: la ventana `_to - _from` no puede pasar de 50
+# ("Parameter _to can't be greater than 50") y `_from` no puede pasar de 2500. O sea:
+# 50 productos por request, 2500 por consulta como máximo.
+VTEX_PAGINA = 50
+VTEX_VENTANA_MAX = 50
+VTEX_FROM_MAX = 2500
+
+# Un "descuento" por encima de esto no es un descuento: es un ListPrice en otra escala.
+# MEDIDO: Vea publica ListPrice ≈ Price × 82,6 en el 100% de su catálogo, lo que daba
+# 98,8% OFF en todos sus productos. Los descuentos reales observados no pasan del 49%.
+DESCUENTO_MAX_PCT = 90.0
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36")
+
+
+def _bf(dic: dict, clave: str):
+    """
+    Lee un campo de VTEX tolerando la serialización .NET.
+
+    El endpoint `catalog_system/pub` devuelve los Teasers con los nombres de campo
+    internos de C#: `<Name>k__BackingField` en vez de `name`. MEDIDO el 09/09/2026:
+    leyendo `name` salían 0 promos de 4 cadenas; con la clave real, 92.
+    Se prueban las dos formas porque otros endpoints de VTEX sí devuelven camelCase.
+    """
+    if not isinstance(dic, dict):
+        return None
+    for k in (clave, clave[0].lower() + clave[1:], f"<{clave}>k__BackingField"):
+        if k in dic:
+            return dic[k]
+    return None
+
+
+def _nombres_teasers(teasers) -> list[str]:
+    vistos: list[str] = []
+    for t in (teasers or []):
+        n = _bf(t, "Name")
+        if n and n not in vistos:
+            vistos.append(str(n))
+    return vistos
+
+
+def _precio_lista(oferta: dict, precio: float) -> Optional[float]:
+    """
+    El precio tachado, o None si no hay oferta real.
+
+    No alcanza con `ListPrice or PriceWithoutDiscount`: en Vea el ListPrice está en
+    otra escala y daba 98,8% de descuento en todo el catálogo; en Carrefour, en cambio,
+    el ListPrice SÍ es el precio tachado correcto y el PriceWithoutDiscount es menor.
+    Por eso se toma el mayor de los candidatos que produzca un descuento creíble.
+    """
+    candidatos = []
+    for campo in ("ListPrice", "PriceWithoutDiscount", "FullSellingPrice"):
+        v = oferta.get(campo)
+        try:
+            v = float(v) if v else 0.0
+        except (TypeError, ValueError):
+            continue
+        if v > precio and (1 - precio / v) * 100 <= DESCUENTO_MAX_PCT:
+            candidatos.append(v)
+    return max(candidatos) if candidatos else None
 
 
 class FuenteVTEX:
@@ -196,15 +252,15 @@ class FuenteVTEX:
         if precio in (None, 0):
             return None
 
-        lista = oferta.get("ListPrice") or oferta.get("PriceWithoutDiscount")
-        teasers = [t.get("name") for t in (oferta.get("Teasers") or [])
-                   if isinstance(t, dict) and t.get("name")]
+        precio = float(precio)
+        lista = _precio_lista(oferta, precio)
+        teasers = _nombres_teasers(oferta.get("Teasers"))
 
         return Oferta(
             cadena=cadena,
             producto=prod.get("productName") or "",
-            precio=float(precio),
-            precio_lista=float(lista) if lista else None,
+            precio=precio,
+            precio_lista=lista,
             ean=item.get("ean") or None,
             marca=prod.get("brand") or None,
             promos=teasers,
@@ -284,33 +340,33 @@ class FuenteCoto:
             log.warning("[coto] falló: %s", e)
         return res
 
+    # Ruta real, VERIFICADA el 09/09/2026 contra la respuesta del sitio:
+    #   contents[].Main[].contents[].records[].records[0].attributes
+    # Los atributos llevan prefijo (`product.` / `sku.`) y CADA VALOR ES UN ARRAY DE UNO.
+    # La versión anterior buscaba "activePrice"/"description" sin prefijo y con valores
+    # escalares: contra la respuesta real capturaba CERO productos, y como no levantaba
+    # excepción, Coto desaparecía de la comparación sin que nada lo avisara.
+
     @staticmethod
-    def _parsear(data) -> list[Oferta]:
-        """
-        La forma exacta de Coto está PENDIENTE de confirmar contra una respuesta
-        real (se vio `sku.activePrice`). Se busca en profundidad en vez de asumir
-        una ruta fija, para no romperse con un cambio de anidamiento.
-        """
-        out: list[Oferta] = []
+    def _uno(attrs: dict, clave: str):
+        v = attrs.get(clave)
+        if isinstance(v, list):
+            return v[0] if v else None
+        return v
+
+    @staticmethod
+    def _hallar_records(data) -> list:
+        """El primer nodo con `records` cuyos elementos son a su vez agregados."""
+        encontrado: list = []
 
         def recorrer(nodo):
+            if encontrado:
+                return
             if isinstance(nodo, dict):
-                precio = nodo.get("activePrice") or nodo.get("price")
-                nombre = (nodo.get("description") or nodo.get("displayName")
-                          or nodo.get("productName"))
-                if precio and nombre:
-                    try:
-                        out.append(Oferta(
-                            cadena="Coto",
-                            producto=str(nombre),
-                            precio=float(precio),
-                            precio_lista=(float(nodo["listPrice"])
-                                          if nodo.get("listPrice") else None),
-                            ean=nodo.get("eanPrincipal") or nodo.get("ean"),
-                            origen="coto",
-                        ))
-                    except (TypeError, ValueError):
-                        pass
+                recs = nodo.get("records")
+                if isinstance(recs, list) and recs and isinstance(recs[0], dict) \
+                        and isinstance(recs[0].get("records"), list):
+                    encontrado.extend(recs)
                     return
                 for v in nodo.values():
                     recorrer(v)
@@ -319,7 +375,59 @@ class FuenteCoto:
                     recorrer(v)
 
         recorrer(data)
+        return encontrado
+
+    @classmethod
+    def _parsear(cls, data) -> list[Oferta]:
+        out: list[Oferta] = []
+        for rec in cls._hallar_records(data):
+            hijos = rec.get("records") or []
+            attrs = (hijos[0] if hijos else {}).get("attributes") or {}
+            nombre = cls._uno(attrs, "product.description") or cls._uno(attrs, "sku.displayName")
+            crudo = cls._uno(attrs, "sku.activePrice")
+            if not nombre or crudo in (None, ""):
+                continue
+            try:
+                precio = float(crudo)
+            except (TypeError, ValueError):
+                continue
+            if precio <= 0:
+                continue
+            # OJO: `sku.referencePrice` NO es el precio tachado, es el precio por unidad
+            # de medida (papel higiénico: activePrice 7396,99 · referencePrice 184,93 el m²).
+            # Usarlo como precio_lista repetiría el bug de Vea. Las promos vienen aparte.
+            out.append(Oferta(
+                cadena="Coto",
+                producto=str(nombre).strip(),
+                precio=precio,
+                precio_lista=None,
+                ean=cls._uno(attrs, "product.eanPrincipal"),
+                marca=cls._uno(attrs, "product.brand"),
+                promos=cls._promos(attrs),
+                origen="coto",
+            ))
         return out
+
+    @classmethod
+    def _promos(cls, attrs: dict) -> list[str]:
+        """`product.dtoDescuentos` es un string con JSON adentro."""
+        salida: list[str] = []
+        for campo in ("product.dtoDescuentos", "product.dtoDescuentosMediosPago"):
+            crudo = cls._uno(attrs, campo)
+            if not crudo or crudo == "[]":
+                continue
+            try:
+                items = json.loads(crudo) if isinstance(crudo, str) else crudo
+            except (ValueError, TypeError):
+                continue
+            for d in (items or []):
+                if not isinstance(d, dict):
+                    continue
+                texto = " ".join(str(d.get(k, "")).strip() for k in
+                                 ("textoDescuento", "textoLlevando") if d.get(k)).strip()
+                if texto and texto not in salida:
+                    salida.append(texto)
+        return salida
 
 
 # ─────────────────────────────────────────────────────────────────

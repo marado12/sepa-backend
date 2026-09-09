@@ -1,0 +1,52 @@
+# Mide si los sitios de las cadenas responden desde los runners de GitHub (IPs de Azure).
+#
+# Es LA incógnita que decide dónde puede correr el snapshot diario:
+#   - responde  → el snapshot corre gratis en Actions, todos los días, sin tu PC
+#   - no responde → hay que correrlo desde tu máquina o desde un host en Argentina
+#
+# El SEPA no respondía desde Azure, pero eso no dice nada de estos sitios: son otra
+# infraestructura (VTEX sobre CDN). Hay que medirlo, no suponerlo.
+#
+# Se puede disparar a mano desde la pestaña Actions (workflow_dispatch).
+name: probe catálogo
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 9 * * *"   # 06:17 ART
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: IP de salida del runner
+        run: curl -s https://api.ipify.org && echo
+
+      - name: ¿Responden las cadenas?
+        run: |
+          for host in \
+            "https://www.carrefour.com.ar" \
+            "https://www.vea.com.ar" \
+            "https://diaonline.supermercadosdia.com.ar" \
+            "https://www.masonline.com.ar" \
+            "https://www.jumbo.com.ar" \
+            "https://www.disco.com.ar" ; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 25 \
+              -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36" \
+              "$host/api/catalog_system/pub/products/search/?ft=leche&_from=0&_to=4" || echo "000")
+            printf '%-52s %s\n' "$host" "$code"
+          done
+          code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 25 \
+            "https://www.coto.com.ar/sitios/cdigi/categoria?Ntt=leche&format=json" || echo "000")
+          printf '%-52s %s\n' "https://www.coto.com.ar" "$code"
+
+      - name: Probe completo con el script
+        run: |
+          pip install requests
+          python scripts/snapshot_catalogo.py --probe
