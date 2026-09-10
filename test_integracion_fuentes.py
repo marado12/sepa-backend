@@ -266,6 +266,60 @@ def test_con_sepa_las_promos_del_sitio_no_existen():
 
 
 
+# ── El SEPA dejó de ser requisito del flujo normal ───────────────
+def test_auto_no_descarga_el_sepa_dentro_del_request():
+    """
+    Un request de usuario NUNCA dispara la descarga del ZIP.
+
+    El ZIP mide 330 MB y `_descargar_y_procesar` usa timeout de lectura 600s:
+    en `auto` un comparar podía quedarse hasta 10 minutos esperando al SEPA
+    antes de caer a online, y en Render no entra en los 512 MB. Ahora en `auto`
+    el SEPA se usa solo si YA está cargado; bajarlo es tarea de POST /refresh.
+
+    El contador se chequea aparte de la excepción a propósito: `_resolver_precios`
+    atrapa `Exception`, así que un `raise` acá se lo tragaría y el test daría
+    verde sin haber probado nada.
+    """
+    import tempfile
+    os.environ["CACHE_DIR"] = tempfile.mkdtemp(prefix="sepa_sin_cache_")
+    main = cargar_main("auto")
+    main._cache.clear()
+
+    llamadas = {"n": 0}
+    def contar(dia):
+        llamadas["n"] += 1
+        raise ConnectionError("no debería llegar acá")
+
+    with patch.object(main, "_descargar_y_procesar", side_effect=contar), \
+         patch.object(main, "_get_fuente_online", return_value=FuenteFalsa()):
+        r = _pedir(main)
+
+    assert llamadas["n"] == 0, "el request de un usuario disparó la descarga del SEPA"
+    assert r.status_code == 200, r.text
+    assert r.json()["origen_precios"] == "online"
+
+
+def test_el_error_del_sepa_no_llega_con_la_url_interna():
+    """
+    El texto de `requests` trae el dataset completo ("...for url: https://datos.
+    produccion.gob.ar/dataset/6f47.../resource/d076...") y viajaba tal cual en
+    `fuente.sepa_error`. No le dice nada al usuario y expone el detalle de una
+    fuente que ya no es la principal: al log sí, al cliente no.
+    """
+    main = cargar_main("auto")
+    boom = ConnectionError(
+        "HTTPSConnectionPool(host='datos.produccion.gob.ar', port=443): Max retries "
+        "exceeded with url: /dataset/6f47ec76/resource/0a9069a9/download/sepa_lunes.zip")
+    with patch.object(main, "_obtener_datos", side_effect=boom), \
+         patch.object(main, "_get_fuente_online", return_value=FuenteFalsa()):
+        r = _pedir(main)
+
+    assert r.status_code == 200, r.text
+    assert "sepa_error" in r.json()["fuente"]        # el motivo se sigue reportando
+    assert "datos.produccion.gob.ar" not in r.text   # pero sin la URL interna
+    assert "sepa_lunes.zip" not in r.text
+
+
 if __name__ == "__main__":
     fallos = 0
     for nombre, fn in sorted(globals().items()):

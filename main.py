@@ -1170,12 +1170,23 @@ def _buscar_parquet_fallback(dia: int) -> Optional[tuple]:
     return None
 
 
-def _cargar_o_descargar(dia: int, permitir_fallback: bool = True) -> tuple:
+class SepaSinCache(RuntimeError):
+    """El SEPA no está en caché y este camino no tiene permitido salir a bajarlo."""
+
+
+def _cargar_o_descargar(dia: int, permitir_fallback: bool = True,
+                        permitir_descarga: bool = True) -> tuple:
     """
     Devuelve (df_suc, prod_path). df_prod NO se cachea en RAM.
 
     `permitir_fallback=False` lo usa _bg_descargar para que cada reintento sea
     una descarga real: el fallback recién se aplica cuando se agotan todos.
+
+    `permitir_descarga=False` lo usa /api/comparar: sirve lo que ya esté en
+    memoria o en disco, pero nunca sale a la red. Bajar el ZIP (330 MB) adentro
+    del request de un usuario lo puede colgar hasta 10 min por el timeout de
+    lectura, y no entra en los 512 MB de Render. La descarga real sigue
+    existiendo, pero solo la dispara POST /refresh.
     """
     fecha_hoy = _hoy()
 
@@ -1222,6 +1233,19 @@ def _cargar_o_descargar(dia: int, permitir_fallback: bool = True) -> tuple:
             return df_suc, prod_path
 
     # 3. Descargar y procesar
+    if not permitir_descarga:
+        # Sin _registrar_intento: no hubo intento. Registrarlo haría que
+        # /api/status contara como fallos del SEPA cada comparar que pasó
+        # por acá, que es justo el error que hace ilegible ese endpoint.
+        fb = _buscar_parquet_fallback(dia) if permitir_fallback else None
+        if fb is None:
+            raise SepaSinCache(f"sin datos del SEPA en caché para el día {dia}")
+        df_suc, prod_path, fecha_fb = fb
+        _cache.clear()
+        _cache[dia] = (df_suc, prod_path, fecha_fb)
+        _degradado[dia] = fecha_fb
+        return df_suc, prod_path
+
     _registrar_intento(dia)
     try:
         df_suc, prod_path = _descargar_y_procesar(dia)
@@ -1248,7 +1272,7 @@ def _cargar_o_descargar(dia: int, permitir_fallback: bool = True) -> tuple:
     return df_suc, prod_path
 
 
-async def _obtener_datos(dia: int) -> tuple:
+async def _obtener_datos(dia: int, permitir_descarga: bool = True) -> tuple:
     """
     Punto único de acceso a los datos SEPA. Garantiza que solo una descarga
     corra a la vez para un mismo día, sin importar cuántos endpoints la pidan.
@@ -1259,6 +1283,10 @@ async def _obtener_datos(dia: int) -> tuple:
       3. Double-checked: otro task puede haber llenado el cache mientras esperábamos.
       4. Si el día ya está descargándose (raro con el lock, pero por las dudas) → espera.
       5. Marca en progreso → corre _cargar_o_descargar en threadpool → guarda en cache.
+
+    Con `permitir_descarga=False` no se toma el lock: no hay descarga que
+    serializar, y tomarlo dejaría a un comparar esperando detrás de un
+    /refresh en curso.
     """
     import asyncio
 
@@ -1267,6 +1295,11 @@ async def _obtener_datos(dia: int) -> tuple:
         df_suc, prod_path, fecha_cache = _cache[dia]
         if _cache_utilizable(dia, fecha_cache, prod_path):
             return df_suc, prod_path
+
+    if not permitir_descarga:
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            None, lambda: _cargar_o_descargar(dia, permitir_descarga=False))
 
     lock = _get_lock()
     async with lock:
@@ -2249,6 +2282,24 @@ def _cadenas_a_consultar(lat, lon, radio_km) -> tuple[list, dict]:
     }
 
 
+def _motivo_sepa(e: Exception) -> str:
+    """
+    Por qué no se usó el SEPA, en una frase y sin la URL interna.
+
+    `str(e)` de requests trae el dataset completo ("403 Client Error: Forbidden
+    for url: https://datos.produccion.gob.ar/dataset/6f47.../resource/d076...")
+    y eso llegaba tal cual al cliente: no le dice nada al usuario y expone el
+    detalle de una fuente que ya no es la principal. El texto completo sigue
+    yendo al log, que es donde sirve.
+    """
+    if isinstance(e, SepaSinCache):
+        return "sin datos del SEPA en caché"
+    status = getattr(getattr(e, "response", None), "status_code", None)
+    if status:
+        return f"el portal del SEPA respondió HTTP {status}"
+    return type(e).__name__
+
+
 async def _resolver_precios(req, dia: int, canasta: list) -> tuple[dict, dict]:
     """
     Obtiene precios de la fuente que corresponda. Devuelve (precios, meta).
@@ -2263,9 +2314,13 @@ async def _resolver_precios(req, dia: int, canasta: list) -> tuple[dict, dict]:
     meta = {"fuente_modo": modo, "origen_precios": None}
 
     # ── SEPA ──
+    # En `auto` el SEPA se usa solo si YA está cargado: este camino no baja
+    # nada. En `sepa` el comportamiento es el de siempre, incluida la descarga
+    # — es el modo de reactivación manual.
     if modo in ("sepa", "auto"):
         try:
-            df_suc, prod_path = await _obtener_datos(dia)
+            df_suc, prod_path = await _obtener_datos(
+                dia, permitir_descarga=(modo == "sepa"))
             precios = _buscar_precios(
                 df_suc, prod_path, canasta,
                 lat=req.lat, lon=req.lon, radio_km=req.radio_km,
@@ -2286,7 +2341,7 @@ async def _resolver_precios(req, dia: int, canasta: list) -> tuple[dict, dict]:
                 raise
             log.warning("[fuente] SEPA no disponible (%s: %s) — cayendo a online",
                         type(e).__name__, e)
-            meta["sepa_error"] = f"{type(e).__name__}: {str(e)[:150]}"
+            meta["sepa_error"] = _motivo_sepa(e)
 
     # ── Online ──
     cadenas, info_geo = _cadenas_a_consultar(req.lat, req.lon, req.radio_km)
