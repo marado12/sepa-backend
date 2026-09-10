@@ -38,6 +38,7 @@ jobs:
         python test_precios_vtex.py
         python test_promos_sitio.py
         python test_integracion_fuentes.py
+        python test_snapshot_catalogo.py    # roadmap T.2 — sales_channel y --sin-stock, agregados en 1dca4a6
 
     # sucursales.py está escrito con csv de stdlib a propósito: tiene que poder
     # cargar aunque el pipeline de parquet esté roto, que es justamente el

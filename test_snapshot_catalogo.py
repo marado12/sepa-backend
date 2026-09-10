@@ -255,3 +255,15 @@ def test_con_sin_stock_no_se_filtra_por_canal():
                       lambda self, *a, **k: _mixto(20, registro)(*a, **k)):
         S.bajar_vtex("Vea", "https://x", S.Contador(), todo=False, sin_stock=True)
     assert all(r == [] for r in registro)
+
+
+if __name__ == "__main__":
+    fallos = 0
+    for nombre, fn in sorted(globals().items()):
+        if nombre.startswith("test_") and callable(fn):
+            try:
+                fn(); print(f"  PASS  {nombre}")
+            except Exception as e:
+                fallos += 1; print(f"  FAIL  {nombre}: {type(e).__name__}: {e}")
+    print(f"\n{'TODO OK' if not fallos else str(fallos)+' FALLOS'}")
+    raise SystemExit(1 if fallos else 0)
