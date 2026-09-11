@@ -75,15 +75,19 @@ def test_extrae_y_agrupa_por_cadena():
         ("Carrefour", "yerba",  3200.0, ["Tarjeta Carrefour 15%"]),
         ("Día",       "aceite", 5250.0, ["20% Banco Nación"]),
     )
-    r = extraer(precios)
+    r, meta = extraer(precios)
     assert set(r) == {"Carrefour", "Día"}
     assert len(r["Carrefour"]) == 1                       # una promo, dos productos
     assert sorted(r["Carrefour"][0].productos) == ["aceite", "yerba"]
+    assert meta["teasers_descartados"] == 0
 
 
 def test_precios_del_sepa_no_traen_promos():
     """Sin la clave `promos` el sistema cae al comportamiento anterior."""
-    assert extraer({("Día", "aceite"): {"precio_min": 5250.0}}) == {}
+    r, meta = extraer({("Día", "aceite"): {"precio_min": 5250.0}})
+    assert r == {}
+    assert meta["teasers_vistos"] == 0
+    assert meta["aviso"] is None      # no hay nada que avisar, no es una falla
 
 
 # ── Cálculo del reintegro ────────────────────────────────────────
@@ -128,6 +132,41 @@ def test_producto_sin_precio_no_suma_al_reintegro():
                {"producto": "fantasma", "subtotal": 0, "ok": False}]
     _, r, _, _ = reintegro_para("Día", promos, detalle)
     assert r == 600.0
+
+
+def test_teasers_que_no_se_entienden_se_cuentan_y_se_reportan():
+    """
+    Hallazgo 3. Un teaser que el parser no entiende salía por un `continue` sin
+    log ni contador. Tiene que quedar contado: es la diferencia entre "esta
+    cadena no tiene promos hoy" y "dejamos de entender lo que manda el sitio".
+    """
+    precios = _precios(
+        ("Carrefour", "aceite", 4890.0, ["Tarjeta Carrefour 15%"]),
+        ("Carrefour", "yerba",  3200.0, ["Envío gratis", "Beneficio exclusivo"]),
+    )
+    r, meta = extraer(precios)
+
+    assert len(r["Carrefour"]) == 1                  # la que sí se entendió
+    assert meta["teasers_vistos"] == 3
+    assert meta["teasers_parseados"] == 1
+    assert meta["teasers_descartados"] == 2
+    assert meta["aviso"], "descartar 2 de 3 teasers no puede ser silencioso"
+
+
+def test_si_no_se_parsea_ningun_teaser_el_aviso_lo_dice():
+    """
+    El caso que ya pasó con `<Name>k__BackingField`: el sitio cambia el formato,
+    el parser deja de entender TODO, `promos_sitio` queda vacío y la app cae a
+    PROMOS_DEFAULT — que puede estar vencida — sin que nada lo note.
+    """
+    precios = _precios(("Día", "aceite", 5250.0, ["Beneficio exclusivo", "Envío gratis"]))
+    r, meta = extraer(precios)
+
+    assert r == {}
+    assert meta["teasers_vistos"] == 2
+    assert meta["teasers_parseados"] == 0
+    assert "formato" in (meta["aviso"] or "").lower(), \
+        "cero de N parseados es el síntoma de un cambio de formato, hay que nombrarlo"
 
 
 def test_sin_promos_devuelve_vacio():

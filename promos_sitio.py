@@ -125,20 +125,43 @@ def parsear_teaser(texto: str, cadena: str) -> Optional[PromoSitio]:
     return None
 
 
-def extraer(precios: dict) -> dict[str, list[PromoSitio]]:
+def _aviso_teasers(vistos: int, parseados: int, descartados: list) -> Optional[str]:
+    """Análogo a `precios_vtex._aviso()`: el contador en una frase, o None."""
+    if not vistos or not descartados:
+        return None
+    if not parseados:
+        return (f"No se pudo interpretar ninguno de los {vistos} descuentos publicados "
+                f"por los sitios: probablemente cambió el formato.")
+    return (f"{len(descartados)} de {vistos} descuentos publicados no se pudieron "
+            f"interpretar.")
+
+
+def extraer(precios: dict) -> tuple[dict[str, list[PromoSitio]], dict]:
     """
     Junta las promos del sitio desde el dict de precios, agrupadas por cadena.
+
+    Devuelve `(por_cadena, meta)`, con la misma forma que
+    `precios_vtex.buscar_precios_online()`. `meta` cuenta los teasers que no se
+    pudieron interpretar, porque sin eso "esta cadena no tiene promos hoy" y
+    "dejamos de entender lo que publica el sitio" se ven idénticos — y el
+    segundo hace que la app caiga a PROMOS_DEFAULT, que puede estar vencida, y
+    calcule un reintegro con un descuento que ya no existe. Es exactamente lo
+    que pasó con `<Name>k__BackingField`.
 
     `precios` es la salida de precios_vtex.buscar_precios_online(): las entradas
     traen `promos` (los Teasers). Las del SEPA no, así que devuelve {} y el
     sistema cae solo al comportamiento anterior.
     """
     por_cadena: dict[str, dict[str, PromoSitio]] = {}
+    vistos = 0
+    descartados: list[str] = []
 
     for (cadena, producto), entry in precios.items():
         for texto in (entry.get("promos") or []):
+            vistos += 1
             p = parsear_teaser(texto, cadena)
             if not p:
+                descartados.append(texto)
                 continue
             vistas = por_cadena.setdefault(cadena, {})
             if p.nombre in vistas:
@@ -147,8 +170,24 @@ def extraer(precios: dict) -> dict[str, list[PromoSitio]]:
                 p.productos = [producto]
                 vistas[p.nombre] = p
 
-    return {c: sorted(v.values(), key=lambda p: -(p.descuento_pct or 0))
-            for c, v in por_cadena.items()}
+    parseados = vistos - len(descartados)
+    # Un ERROR agregado, no uno por teaser: con una canasta grande serían cientos.
+    if vistos and not parseados:
+        log.error("[promos_sitio] 0 de %d teasers interpretados — ¿cambió el formato? "
+                  "Ejemplos: %s", vistos, descartados[:3])
+    elif descartados:
+        log.error("[promos_sitio] %d de %d teasers descartados. Ejemplos: %s",
+                  len(descartados), vistos, descartados[:3])
+
+    meta = {
+        "teasers_vistos": vistos,
+        "teasers_parseados": parseados,
+        "teasers_descartados": len(descartados),
+        "muestra_descartados": descartados[:3],
+        "aviso": _aviso_teasers(vistos, parseados, descartados),
+    }
+    return ({c: sorted(v.values(), key=lambda p: -(p.descuento_pct or 0))
+             for c, v in por_cadena.items()}, meta)
 
 
 def reintegro_para(cadena: str, promos: list[PromoSitio],

@@ -2259,13 +2259,17 @@ def _cadenas_a_consultar(lat, lon, radio_km) -> tuple[list, dict]:
     de precios.
     """
     soportadas = set(_get_fuente_online().cadenas_soportadas())
-    con_geo = set(sucursales.resumen()["por_cadena"])
+    resumen_cat = sucursales.resumen()
+    con_geo = set(resumen_cat["por_cadena"])
     sin_geo = sorted(soportadas - con_geo)
+    # Si el catálogo no cargó, "no hay cadenas cerca" es una conclusión falsa:
+    # no sabemos qué hay cerca. Se arrastra para no culpar al radio de búsqueda.
+    problema_cat = resumen_cat.get("problema")
 
     if lat is None or lon is None:
         # Sin coordenadas no hay filtro posible; se consultan todas.
         info = {"filtro_geografico": False, "motivo": "sin lat/lon",
-                "cadenas_sin_geo": sin_geo}
+                "cadenas_sin_geo": sin_geo, "catalogo_problema": problema_cat}
         return sorted(soportadas), info
 
     cerca = sucursales.cadenas_cerca(lat, lon, radio_km)
@@ -2279,6 +2283,7 @@ def _cadenas_a_consultar(lat, lon, radio_km) -> tuple[list, dict]:
         "distancias_km": cerca,
         "cadenas_sin_geo": sin_geo,
         "cadenas_sin_geo_incluidas": INCLUIR_CADENAS_SIN_GEO,
+        "catalogo_problema": problema_cat,
     }
 
 
@@ -2348,8 +2353,11 @@ async def _resolver_precios(req, dia: int, canasta: list) -> tuple[dict, dict]:
     meta["geo"] = info_geo
     if not cadenas:
         meta["origen_precios"] = "online"
-        meta["aviso"] = ("No hay sucursales de cadenas conocidas en el radio elegido. "
-                         "Probá aumentarlo.")
+        # El catálogo roto y "no hay nada cerca" daban el mismo mensaje, y el
+        # primero no se arregla agrandando el radio.
+        meta["aviso"] = info_geo.get("catalogo_problema") or (
+            "No hay sucursales de cadenas conocidas en el radio elegido. "
+            "Probá aumentarlo.")
         return {}, meta
 
     loop = asyncio.get_event_loop()
@@ -2407,15 +2415,37 @@ async def comparar(req: ComparacionRequest):
         raise HTTPException(503, f"Error obteniendo precios: {str(e)}")
 
     if not precios:
+        problema_cat = (meta_fuente.get("geo") or {}).get("catalogo_problema")
         detalle = meta_fuente.get("aviso") or (
             f"No se encontraron precios dentro de {req.radio_km:.0f} km de tu ubicación."
         )
-        raise HTTPException(404, f"{detalle} Probá aumentar el radio de búsqueda. "
+        # Sugerir "agrandá el radio" cuando el catálogo de sucursales no cargó
+        # manda al usuario a repetir algo que no puede funcionar.
+        sugerencia = "" if problema_cat else " Probá aumentar el radio de búsqueda."
+        raise HTTPException(404, f"{detalle}{sugerencia} "
                                  f"(fuente: {meta_fuente.get('origen_precios') or 'ninguna'})")
 
     # roadmap 4.1: promos del sitio, que le ganan a PROMOS_DEFAULT.
     # Con precios del SEPA esto queda vacío y el comportamiento es el de antes.
-    promos_del_sitio = promos_sitio.extraer(precios)
+    promos_del_sitio, meta_promos = promos_sitio.extraer(precios)
+    # Los teasers que no se pudieron interpretar viajan en la respuesta: si el
+    # sitio cambia el formato, la app cae a PROMOS_DEFAULT —que puede estar
+    # vencida— y este contador es lo único que lo hace visible.
+    if meta_promos["teasers_vistos"]:
+        meta_fuente["promos_sitio_meta"] = meta_promos
+
+    # Los dos consumidores de abajo recorren CADENAS_KEYWORDS —la constante de la
+    # ruta SEPA— para leer precios que hoy llegan de la ruta online. Una cadena
+    # que no esté en esa tabla se consulta, se matchea, cuenta en `n_precios` y
+    # después desaparece del ranking sin una línea de log. Hoy los dos conjuntos
+    # coinciden; esto avisa el día que dejen de coincidir.
+    cadenas_ignoradas = sorted({c for c, _ in precios} - set(CADENAS_KEYWORDS))
+    if cadenas_ignoradas:
+        log.error("[comparar] %d precio(s) descartados: %s no está(n) en "
+                  "CADENAS_KEYWORDS — el ranking y el óptimo los ignoran",
+                  sum(1 for c, _ in precios if c in set(cadenas_ignoradas)),
+                  ", ".join(cadenas_ignoradas))
+        meta_fuente["cadenas_ignoradas"] = cadenas_ignoradas
 
     resultado    = _analizar(canasta, precios, promos, dia, promos_del_sitio)
     optimo       = _canasta_optima(canasta, precios)

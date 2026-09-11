@@ -22,6 +22,32 @@ import pandas as pd
 RAIZ = Path(__file__).resolve().parent.parent
 SALIDA = RAIZ / "data" / "sucursales.csv"
 
+# Umbrales del guard de escritura. Son los mismos que ya valida el CI en
+# .github/workflows/tests.yml — si el CI los considera el mínimo aceptable,
+# no tiene sentido escribir un archivo que no los cumple.
+MIN_FILAS = 1000
+CADENAS_ESPERADAS = ("Día", "Carrefour", "Vea", "Coto", "Chango Más")
+
+
+def verificar_catalogo(out, min_filas: int = MIN_FILAS,
+                       esperadas=CADENAS_ESPERADAS) -> list[str]:
+    """
+    Problemas que impiden escribir el catálogo. Lista vacía = se puede escribir.
+
+    Existe porque este script PISA `data/sucursales.csv`, que es de lo que
+    depende todo el "cerca tuyo". Una corrida degenerada —cambió el esquema del
+    parquet, se rompió la clasificación de cadenas— dejaba un CSV casi vacío
+    encima del bueno y salía con código 0. El usuario terminaba viendo "no hay
+    cadenas cerca, probá aumentar el radio", que no tiene nada que ver.
+    """
+    problemas = []
+    if len(out) < min_filas:
+        problemas.append(f"quedaron {len(out):,} filas y el mínimo es {min_filas:,}")
+    faltan = [c for c in esperadas if c not in set(out["cadena"])]
+    if faltan:
+        problemas.append(f"faltan cadenas esperadas: {', '.join(faltan)}")
+    return problemas
+
 
 def cargar_clasificador(main_py: Path):
     """
@@ -90,13 +116,25 @@ def main():
     })[["cadena", "bandera", "provincia", "lat", "lon", "id_comercio", "id_sucursal"]]
     out = out.sort_values(["cadena", "provincia", "lat"]).reset_index(drop=True)
 
-    SALIDA.parent.mkdir(parents=True, exist_ok=True)
-    out.to_csv(SALIDA, index=False, float_format="%.6f")
-
+    # El desglose va ANTES de escribir: si el guard aborta, estos números son
+    # justamente el diagnóstico de por qué.
     print(f"  descartadas por cadena no reconocida: {descartadas:,}")
     print(f"  descartadas por no reportar coordenadas: {sin_coords:,}")
     print(f"  con signo invertido, REPARADAS: {reparadas:,}")
     print(f"  descartadas por coordenadas fuera de Argentina: {fuera:,}")
+
+    problemas = verificar_catalogo(out)
+    if problemas:
+        print(f"\n✗ NO se escribió {SALIDA.name}:", file=sys.stderr)
+        for p in problemas:
+            print(f"    - {p}", file=sys.stderr)
+        print(f"  El catálogo anterior quedó intacto. Revisá el parquet de entrada\n"
+              f"  y la clasificación de cadenas antes de volver a correr.", file=sys.stderr)
+        raise SystemExit(1)
+
+    SALIDA.parent.mkdir(parents=True, exist_ok=True)
+    out.to_csv(SALIDA, index=False, float_format="%.6f")
+
     print(f"\nEscritas {len(out):,} sucursales en {SALIDA.relative_to(RAIZ)}")
     print(f"  {SALIDA.stat().st_size/1024:.0f} KB\n")
     print(out["cadena"].value_counts().to_string())

@@ -320,6 +320,48 @@ def test_el_error_del_sepa_no_llega_con_la_url_interna():
     assert "sepa_lunes.zip" not in r.text
 
 
+def test_una_cadena_fuera_de_cadenas_keywords_se_reporta():
+    """
+    Hallazgo 12. `_analizar` y `_canasta_optima` recorren `CADENAS_KEYWORDS`, la
+    constante de la ruta SEPA, para consumir precios que hoy vienen de la ruta
+    online. Un precio de una cadena que no esté en esa tabla se consulta, se
+    matchea, cuenta en `n_precios`… y desaparece del ranking sin una sola línea
+    de log.
+
+    Acá Walmart es además el más barato de los dos: exactamente el caso en que
+    el silencio le cuesta plata al usuario.
+    """
+    main = cargar_main("sepa")
+    precios = {
+        ("Día", "aceite girasol"):     {"precio_min": 5250.0, "precio_por_100u": None},
+        ("Walmart", "aceite girasol"): {"precio_min": 10.0,   "precio_por_100u": None},
+    }
+    with patch.object(main, "_obtener_datos", return_value=(None, "/fake.parquet")), \
+         patch.object(main, "_buscar_precios", return_value=precios):
+        r = _pedir(main)
+
+    assert r.status_code == 200, r.text
+    assert r.json()["fuente"].get("cadenas_ignoradas") == ["Walmart"], \
+        "una cadena con precio que el optimizador ignora tiene que reportarse"
+
+
+def test_toda_cadena_online_esta_en_cadenas_keywords():
+    """
+    Guardia del hallazgo 12, y la parte que de verdad protege a futuro.
+
+    Hoy pasa: los dos conjuntos coinciden en 7 cadenas. Está para fallar el día
+    que alguien sume una cadena a la fuente online sin agregarla a
+    CADENAS_KEYWORDS — que es cuando sus precios empezarían a descartarse.
+    """
+    import fuentes
+    main = cargar_main("auto")
+    soportadas = set(fuentes.VTEX_BASES) | {"Coto"}
+    faltan = soportadas - set(main.CADENAS_KEYWORDS)
+    assert not faltan, (
+        f"{sorted(faltan)} se consulta(n) online pero no está(n) en CADENAS_KEYWORDS: "
+        f"sus precios se descartarían del ranking y del óptimo")
+
+
 if __name__ == "__main__":
     fallos = 0
     for nombre, fn in sorted(globals().items()):

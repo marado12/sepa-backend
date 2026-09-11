@@ -26,6 +26,38 @@ RUTA_CSV = Path(os.environ.get(
     "SUCURSALES_PATH", Path(__file__).resolve().parent / "data" / "sucursales.csv"))
 
 
+# Qué se descartó en el último parseo, por ruta. `cargar` está bajo @lru_cache,
+# así que su cuerpo corre una sola vez por archivo: justo cuando hay algo que
+# registrar. Los lee `resumen()`, que es lo que viaja en /api/status.
+_STATS: dict[str, dict] = {}
+
+
+def _stats(ruta) -> dict:
+    return _STATS.get(str(ruta),
+                      {"filas_leidas": 0, "sin_columna": 0, "dato_invalido": 0})
+
+
+def _problema(p: Path, cargadas: int, st: dict) -> Optional[str]:
+    """
+    Por qué el catálogo no sirve, en una frase. None si está sano.
+
+    Análogo a `precios_vtex._aviso()`: el dato crudo está en los contadores, esto
+    es lo que se le puede mostrar a alguien.
+    """
+    if not p.exists():
+        return f"No existe el archivo de sucursales ({p})."
+    if st["filas_leidas"] and not cargadas:
+        if st["sin_columna"]:
+            return (f"El catálogo tiene {st['filas_leidas']} filas y no cargó ninguna: "
+                    f"le faltan columnas. ¿Cambiaron los encabezados del CSV?")
+        return (f"El catálogo tiene {st['filas_leidas']} filas y no cargó ninguna: "
+                f"todas traen datos inválidos.")
+    descartadas = st["sin_columna"] + st["dato_invalido"]
+    if descartadas:
+        return f"Se descartaron {descartadas} de {st['filas_leidas']} filas del catálogo."
+    return None
+
+
 @dataclass(frozen=True)
 class Sucursal:
     cadena: str
@@ -62,8 +94,10 @@ def cargar(ruta: Optional[str] = None) -> tuple[Sucursal, ...]:
         return ()
 
     out: list[Sucursal] = []
+    leidas = sin_columna = dato_invalido = 0
     with p.open(encoding="utf-8", newline="") as f:
         for fila in csv.DictReader(f):
+            leidas += 1
             try:
                 out.append(Sucursal(
                     cadena=fila["cadena"],
@@ -74,8 +108,25 @@ def cargar(ruta: Optional[str] = None) -> tuple[Sucursal, ...]:
                     id_comercio=fila.get("id_comercio", ""),
                     id_sucursal=fila.get("id_sucursal", ""),
                 ))
-            except (KeyError, ValueError, TypeError):
-                continue      # una fila corrupta no invalida el catálogo entero
+            # Una fila corrupta no invalida el catálogo entero — pero se cuenta.
+            # Descartar en silencio hacía que "el CSV cambió de encabezados" se
+            # viera igual que "no hay sucursales cerca tuyo".
+            except KeyError:
+                sin_columna += 1
+            except (ValueError, TypeError):
+                dato_invalido += 1
+
+    _STATS[str(p)] = {"filas_leidas": leidas, "sin_columna": sin_columna,
+                      "dato_invalido": dato_invalido}
+    descartadas = sin_columna + dato_invalido
+    if leidas and not out:
+        log.error("[sucursales] %s: se leyeron %d filas y NO cargó ninguna "
+                  "(%d sin columna, %d con dato inválido) — el filtro geográfico "
+                  "queda vacío", p, leidas, sin_columna, dato_invalido)
+    elif descartadas:
+        log.error("[sucursales] %s: %d de %d filas descartadas "
+                  "(%d sin columna, %d con dato inválido)",
+                  p, descartadas, leidas, sin_columna, dato_invalido)
     log.info("[sucursales] %d cargadas de %s", len(out), p)
     return tuple(out)
 
@@ -114,9 +165,12 @@ def resumen(ruta: Optional[str] = None) -> dict:
     for s in subs:
         por_cadena[s.cadena] = por_cadena.get(s.cadena, 0) + 1
     p = Path(ruta) if ruta else RUTA_CSV
+    st = _stats(p)
     return {
         "total": len(subs),
         "por_cadena": dict(sorted(por_cadena.items(), key=lambda kv: -kv[1])),
         "archivo": str(p),
         "existe": p.exists(),
+        "filas_descartadas": st["sin_columna"] + st["dato_invalido"],
+        "problema": _problema(p, len(subs), st),
     }

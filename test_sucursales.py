@@ -86,6 +86,48 @@ def test_resumen_cuenta_por_cadena():
     assert r["existe"] is True
 
 
+def _csv_con_encabezados(encabezados: list) -> str:
+    """Mismo contenido que _csv_temp, pero con otros nombres de columna."""
+    f = tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False,
+                                    newline="", encoding="utf-8")
+    w = csv.writer(f)
+    w.writerow(encabezados)
+    w.writerows(FILAS)
+    f.close()
+    suc.cargar.cache_clear()
+    return f.name
+
+
+def test_encabezados_cambiados_no_se_ven_igual_que_un_catalogo_vacio():
+    """
+    Hallazgo 5. Si el CSV se regenera con otros encabezados, TODAS las filas
+    fallan con KeyError, `cargar()` devuelve vacío y el log dice "0 cargadas" en
+    nivel INFO. Río abajo el usuario recibe "no hay cadenas cerca, probá aumentar
+    el radio" — y por más que lo aumente nunca va a funcionar, porque el radio
+    nunca fue el problema.
+
+    El descarte por fila es deliberado (ver el test de arriba). Lo que no puede
+    pasar es que nadie cuente cuántas se descartaron.
+    """
+    ruta = _csv_con_encabezados(["chain", "flag", "prov", "latitude", "longitude",
+                                 "cid", "sid"])
+    r = suc.resumen(ruta)
+
+    assert r["total"] == 0
+    assert r["filas_descartadas"] == len(FILAS), \
+        "las filas descartadas tienen que contarse, no desaparecer"
+    assert r["problema"], "un catálogo que no cargó ninguna fila tiene que decirlo"
+    assert "encabezado" in r["problema"].lower()
+
+
+def test_un_catalogo_sano_no_reporta_problema():
+    """El contador no puede ensuciar el caso normal."""
+    r = suc.resumen(_csv_temp())
+    assert r["total"] == len(FILAS)
+    assert r["filas_descartadas"] == 0
+    assert r["problema"] is None
+
+
 def test_catalogo_real_tiene_las_cadenas_esperadas():
     """Contra data/sucursales.csv de verdad, si está presente."""
     suc.cargar.cache_clear()
