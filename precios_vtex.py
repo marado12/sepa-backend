@@ -116,25 +116,81 @@ def _cantidad_objetivo(item: dict, extraer_cantidades: Callable[[str], list]):
     return None
 
 
+# Escala de presentación por tipo: cuánto multiplicar el precio por unidad base
+# y con qué etiqueta mostrarlo. Vive acá, en una sola tabla, porque antes estaba
+# duplicada en main.py y en este archivo — y agregar un tipo en una sola de las
+# dos es exactamente cómo `longitud` terminó sin existir en ninguna.
+# Cambiar "$/100g" por "$/kg" es tocar esta tabla y nada más.
+_ESCALA = {
+    "peso":     (100, "$/100g"),
+    "volumen":  (100, "$/100ml"),
+    "longitud": (1,   "$/m"),
+    "count":    (1,   "$/unidad"),
+}
+_UNIDAD_BASE = {"peso": "g", "volumen": "ml", "longitud": "m", "count": "u"}
+
+TIPOS_COMPARABLES = tuple(_ESCALA)
+
+
+def precio_unitario(precio: float, cantidad_base: float, tipo: str,
+                    desc: str) -> Optional[dict]:
+    """
+    Precio por unidad de contenido, con el dato y su presentación separados.
+
+    `precio_base` es el número con el que se comparan dos productos: precio por
+    UNA unidad base (un gramo, un ml, un metro, una unidad). `valor` y `label`
+    son solo cómo se muestra — hoy $/100g y $/m, mañana lo que se decida, sin
+    tocar nada de lo que compara.
+    """
+    if not (precio > 0 and cantidad_base > 0):
+        return None
+    escala = _ESCALA.get(tipo)
+    if not escala:
+        return None
+    factor, label = escala
+    if tipo == "count":
+        label = f"$/unidad (pack x{int(cantidad_base)})"
+    return {
+        "valor": round(precio / cantidad_base * factor, 2),
+        "tipo": tipo,
+        "label": label,
+        "desc_ganadora": desc,
+        "cantidad_base": round(cantidad_base, 1),
+        "precio_base": round(precio / cantidad_base, 6),
+        "unidad_base": _UNIDAD_BASE[tipo],
+    }
+
+
+# `measurementUnit` que no dicen contenido: son "una unidad", que es lo mismo que
+# no declarar nada. Para esos hay que seguir leyendo el título.
+_UNIDAD_SIN_CONTENIDO = {"un", "unidad", "unidades", "u"}
+
+
 def _precio_por_100u(oferta: Oferta, extraer_cantidades: Optional[Callable[[str], list]],
                      normalizar: Callable[[str], str]) -> Optional[dict]:
-    """Misma forma que `_calcular_precio_unitario` de main.py."""
+    """
+    Misma forma que `_calcular_precio_unitario` de main.py.
+
+    Primero lo que declara la API (`measurementUnit` + `unitMultiplier`), que es
+    exacto; recién después se lee el título. Un pollo "x kg" no dice en el nombre
+    cuánto pesa, pero la API sí: unitMultiplier=3.0 con measurementUnit="kg".
+    """
     if not extraer_cantidades:
         return None
-    LABEL = {"peso": "$/100g", "volumen": "$/100ml", "count": "$/unidad"}
+
+    unidad = (oferta.unidad_medida or "").strip().lower()
+    if oferta.contenido and unidad and unidad not in _UNIDAD_SIN_CONTENIDO:
+        for val, tipo in (extraer_cantidades(f"{oferta.contenido} {unidad}") or []):
+            pu = precio_unitario(oferta.precio, val, tipo, oferta.producto)
+            if pu:
+                pu["fuente_contenido"] = "api"
+                return pu
+
     for val, tipo in (extraer_cantidades(normalizar(oferta.producto)) or []):
-        if val > 0 and tipo in LABEL:
-            if tipo == "count":
-                valor, label = round(oferta.precio / val, 2), f"$/unidad (pack x{int(val)})"
-            else:
-                valor, label = round(oferta.precio / val * 100, 2), LABEL[tipo]
-            return {
-                "valor": valor,
-                "tipo": tipo,
-                "label": label,
-                "desc_ganadora": oferta.producto,
-                "cantidad_base": round(val, 1),
-            }
+        pu = precio_unitario(oferta.precio, val, tipo, oferta.producto)
+        if pu:
+            pu["fuente_contenido"] = "nombre"
+            return pu
     return None
 
 

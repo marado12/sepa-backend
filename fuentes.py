@@ -44,6 +44,15 @@ class Oferta:
     promos: list[str] = field(default_factory=list)   # Teasers de VTEX → roadmap 4.1
     disponible: bool = True
     origen: str = ""                       # "vtex", "coto", "sepa", "manual"
+    # Contenido declarado por la propia API, sin parsear el nombre. VTEX lo trae
+    # en `measurementUnit` + `unitMultiplier`: un pollo "x kg" viene con
+    # measurementUnit="kg" y unitMultiplier=3.0, o sea 3 kg exactos. Es más
+    # confiable que leer "x kg" del título, que no dice cuánto pesa.
+    # Verificado el 11/09 contra la API de Carrefour: `Price` es lo que paga el
+    # cliente por el artículo (las cuotas dan el mismo total), NO el precio del
+    # kilo — así que el total no se sobreestima.
+    unidad_medida: Optional[str] = None     # "kg", "un", "g", "lt"…
+    contenido: Optional[float] = None       # cuántas `unidad_medida` trae el artículo
     ts: str = field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
 
     @property
@@ -256,6 +265,11 @@ class FuenteVTEX:
         lista = _precio_lista(oferta, precio)
         teasers = _nombres_teasers(oferta.get("Teasers"))
 
+        try:
+            contenido = float(item.get("unitMultiplier"))
+        except (TypeError, ValueError):
+            contenido = None
+
         return Oferta(
             cadena=cadena,
             producto=prod.get("productName") or "",
@@ -267,6 +281,8 @@ class FuenteVTEX:
             disponible=bool(oferta.get("IsAvailable", True))
                        and (oferta.get("AvailableQuantity") or 0) > 0,
             origen="vtex",
+            unidad_medida=(item.get("measurementUnit") or None),
+            contenido=contenido,
         )
 
     # ── API pública ───────────────────────────────────────────────

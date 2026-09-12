@@ -23,7 +23,7 @@ from outliers import detect_outliers, outlier_summary, load_all_chains, PARQUET_
 
 import sucursales
 from fuentes import FuenteCompuesta, FuenteCoto, FuenteVTEX
-from precios_vtex import buscar_precios_online
+from precios_vtex import buscar_precios_online, precio_unitario
 import promos_sitio
 
 logging.basicConfig(level=logging.INFO)
@@ -472,19 +472,32 @@ def tokens(texto: str) -> set:
 #  PARSEO DE CANTIDAD CON UNIDAD
 # ─────────────────────────────────────────────
 
-# Factores de conversión a unidad base (gramos o ml)
+# Factores de conversión a unidad base (gramos, ml o metros)
+#
+# OJO AL AGREGAR: estas tablas se armaron con la forma de escribir de Carrefour
+# y Día, y por eso no conocían la de Coto ("1 Ltr", "400 Grm") ni la del papel
+# higiénico ("4 x 80 m"). Medido el 11/09 sobre las 5 fixtures: 90 de 442
+# productos quedaban sin métrica, 54 de ellos papel higiénico. Cualquier unidad
+# que se agregue acá va también a la alternancia de las regex de abajo — la
+# regex es el primer gate y sin ella esta tabla no se consulta nunca.
 _UNIDAD_A_GRAMOS = {
-    "g": 1, "gramos": 1, "gr": 1,
+    "g": 1, "gramos": 1, "gramo": 1, "gr": 1, "grs": 1, "grm": 1, "grms": 1,
     "kg": 1000, "kilo": 1000, "kilos": 1000,
     "mg": 0.001,
 }
 _UNIDAD_A_ML = {
     "ml": 1, "cc": 1,
     "l": 1000, "litro": 1000, "litros": 1000, "lt": 1000, "lts": 1000,
+    "ltr": 1000, "ltrs": 1000,
+}
+# Longitud: papel higiénico, film, papel de cocina. Es el 60% de lo que antes
+# quedaba sin métrica, y justo el producto del ítem 1.1 (320 m vs 100 m).
+_UNIDAD_A_METROS = {
+    "m": 1, "mt": 1, "mts": 1, "metro": 1, "metros": 1,
 }
 # Unidades contables: huevos, rollos, etc. La "base" es la unidad individual.
 _UNIDAD_COUNT = {
-    "unidad", "unidades", "un", "ud", "uds",
+    "unidad", "unidades", "un", "u", "ud", "uds",
     "huevo", "huevos",
     "rollo", "rollos",
     "paquete", "paquetes", "paq",
@@ -496,7 +509,8 @@ _UNIDAD_COUNT = {
 
 def _a_base(valor: float, unidad: str) -> tuple[float, str] | None:
     """
-    Convierte (valor, unidad) → (valor_base, tipo) donde tipo es 'peso', 'volumen' o 'count'.
+    Convierte (valor, unidad) → (valor_base, tipo), con tipo en
+    'peso' | 'volumen' | 'longitud' | 'count'.
     Retorna None si la unidad no es reconocida (ej: 'pack' genérico).
     """
     u = unidad.lower().strip()
@@ -504,6 +518,8 @@ def _a_base(valor: float, unidad: str) -> tuple[float, str] | None:
         return (valor * _UNIDAD_A_GRAMOS[u], "peso")
     if u in _UNIDAD_A_ML:
         return (valor * _UNIDAD_A_ML[u], "volumen")
+    if u in _UNIDAD_A_METROS:
+        return (valor * _UNIDAD_A_METROS[u], "longitud")
     if u in _UNIDAD_COUNT:
         return (valor, "count")
     return None
@@ -511,23 +527,39 @@ def _a_base(valor: float, unidad: str) -> tuple[float, str] | None:
 
 # Regex para extraer cantidades de la descripción del producto
 # Captura: "500 G", "500gr", "1.5 KG", "0,5kg", "1L", "750ml", "200 CC", etc.
+# Alternancia de unidades, COMPARTIDA por _RE_CANT_DESC y _RE_CANT_PACK: antes
+# estaba escrita dos veces y agregar una unidad en una sola dejaba el pack sin
+# reconocerla. El orden importa — la alternancia se prueba de izquierda a
+# derecha, así que las formas largas van primero ("mts" antes que "m", "ml"
+# antes que "m"). Tiene que cubrir lo mismo que _UNIDAD_A_*.
+_U_ALT = (r"kilos?|kg|gramos?|grms?|grs|gr|g|mg|ml|cc"
+          r"|litros?|ltrs?|lts?|l|metros?|mts?|m")
+
 _RE_CANT_DESC = re.compile(
-    r"(\d+(?:[.,]\d+)?)\s*"
-    r"(kg|kilo(?:s)?|g(?:r(?:amos?)?)?|mg|l(?:itros?|ts?)?|ml|cc)\b",
+    r"(\d+(?:[.,]\d+)?)\s*(" + _U_ALT + r")\b",
     re.IGNORECASE,
 )
 
 # Regex para unidades contables: "x12 unidades", "12un", "x 6 huevos", "pack x30", etc.
 _RE_CANT_COUNT = re.compile(
     r"[xX×]?\s*(\d+)\s*"
-    r"(?:un(?:idades?|\.)?|huevos?|ud(?:s)?\.?|rollos?|paquetes?|paq\.?|sobres?|latas?|botellas?|pack)\b",
+    # `u(?=\.)`: Carrefour escribe "4 u." y "18 u.". El punto se exige por
+    # lookahead y no se consume — consumiéndolo, el `\b` del final queda entre
+    # "." y el fin de la cadena, que no es frontera, y no matchea nunca. Una "u"
+    # suelta sin punto no se acepta: matchearía cualquier cosa.
+    r"(?:un(?:idades?|\.)?|u(?=\.)|huevos?|ud(?:s)?\.?|rollos?|paquetes?|paq\.?|sobres?|latas?|botellas?|pack)\b",
     re.IGNORECASE,
 )
 
 # Regex para doble medida: "6 x 500ml", "4 x 200g", "2x1l"
 # El precio SEPA corresponde al pack completo → normalizamos al total.
 _RE_CANT_PACK = re.compile(
-    r"(\d+)\s*[xX×]\s*(\d+(?:[.,]\d+)?)\s*(kg|kilo(?:s)?|g(?:r(?:amos?)?)?|mg|l(?:itros?|ts?)?|ml|cc)\b",
+    # El contable del medio es opcional: Carrefour escribe tanto "4 x 80 m."
+    # como "4 u. x 80 m.". Sin contemplarlo, el segundo caía en la regex simple
+    # y daba 80 m en vez de 320 — un $/m cuatro veces más alto. Un hueco se
+    # recupera; un número equivocado el usuario no lo puede detectar.
+    r"(\d+)\s*(?:u\.|un\.?|unid(?:ades?)?\.?|rollos?)?\s*[xX×]\s*"
+    r"(\d+(?:[.,]\d+)?)\s*(" + _U_ALT + r")\b",
     re.IGNORECASE,
 )
 
@@ -1503,35 +1535,21 @@ def _buscar_precios(df_suc, prod_path, canasta, lat=None, lon=None, radio_km=5.0
 
         def _calcular_precio_unitario(df_top: pd.DataFrame, precio_min: float) -> dict | None:
             """
-            Calcula precio por unidad base del match más barato.
-            Devuelve dict con:
-              - valor: precio normalizado ($/100g, $/100ml, o $/unidad)
-              - tipo: "peso" | "volumen" | "count"
-              - label: "$/100g" | "$/100ml" | "$/unidad (pack xN)"
-              - desc_ganadora: descripción original del producto ganador
-              - cantidad_base: gramos/ml/unidades contenidos en el producto
+            Precio por unidad de contenido del match más barato.
+
+            La forma del dict y las etiquetas las decide `precios_vtex.precio_unitario`,
+            compartida con la ruta online: tener dos tablas de escalas fue lo que
+            dejó a `longitud` sin existir en ninguna de las dos.
             """
-            _LABEL = {"peso": "$/100g", "volumen": "$/100ml", "count": "$/unidad"}
             candidatos = df_top[df_top["_precio"] == precio_min].head(5)
             for _, row in candidatos.iterrows():
                 desc = row["_desc_norm"]
                 desc_orig = row.get("productos_descripcion", desc)
                 cantidades = _cache_cantidades.get(desc) or _extraer_cantidades_desc(desc)
                 for val_base, tipo in cantidades:
-                    if val_base > 0 and tipo in ("peso", "volumen", "count"):
-                        if tipo == "count":
-                            valor = round(precio_min / val_base, 2)
-                            label = f"$/unidad (pack x{int(val_base)})"
-                        else:
-                            valor = round(precio_min / val_base * 100, 2)
-                            label = _LABEL[tipo]
-                        return {
-                            "valor": valor,
-                            "tipo": tipo,
-                            "label": label,
-                            "desc_ganadora": str(desc_orig),
-                            "cantidad_base": round(val_base, 1),
-                        }
+                    pu = precio_unitario(precio_min, val_base, tipo, str(desc_orig))
+                    if pu:
+                        return pu
             return None
 
         def _mejor_por_cadena(grupo):
