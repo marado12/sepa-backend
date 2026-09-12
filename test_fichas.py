@@ -103,6 +103,39 @@ def test_el_promedio_va_sobre_precio_base_no_sobre_el_envase():
     assert p["n_cadenas"] == 2
 
 
+def test_la_referencia_es_la_mediana_no_la_media():
+    """
+    Con n chico y un representante mal matcheado, la media se va con el outlier.
+    Medido sobre las 5 fixtures (Tarea 16): adentro de UNA cadena los candidatos
+    que pasan UMBRAL_MATCH difieren hasta 9,78x en precio por unidad, así que un
+    representante disparatado no es raro — es frecuente.
+
+    Tres cadenas a 1,0 · 1,1 · 5,0: la media da 2,37 (ninguna cadena se parece a
+    eso) y la mediana 1,1.
+    """
+    canasta = [{"nombre": "x", "cantidad": 1}]
+    precios = {
+        ("A", "x"): {"precio_min": 1000.0, "precio_por_100u": _pu(1000, 1000, "peso", "g")},
+        ("B", "x"): {"precio_min": 1100.0, "precio_por_100u": _pu(1100, 1000, "peso", "g")},
+        ("C", "x"): {"precio_min": 5000.0, "precio_por_100u": _pu(5000, 1000, "peso", "g")},
+    }
+    p = main._promedios_por_producto(canasta, precios)["x"]
+    assert p["precio_base"] == 1.1, p          # mediana; la media daría 2.366667
+    assert p["n_cadenas"] == 3
+
+
+def test_con_n_par_la_mediana_promedia_los_dos_del_medio():
+    canasta = [{"nombre": "x", "cantidad": 1}]
+    precios = {
+        ("A", "x"): {"precio_min": 1000.0, "precio_por_100u": _pu(1000, 1000, "peso", "g")},
+        ("B", "x"): {"precio_min": 2000.0, "precio_por_100u": _pu(2000, 1000, "peso", "g")},
+        ("C", "x"): {"precio_min": 3000.0, "precio_por_100u": _pu(3000, 1000, "peso", "g")},
+        ("D", "x"): {"precio_min": 9000.0, "precio_por_100u": _pu(9000, 1000, "peso", "g")},
+    }
+    p = main._promedios_por_producto(canasta, precios)["x"]
+    assert p["precio_base"] == 2.5           # (2 + 3) / 2, no (1+2+3+9)/4 = 3.75
+
+
 def test_el_n_del_promedio_viaja_siempre():
     """Un promedio de dos no es "el mercado". El n tiene que poder mostrarse."""
     proms = main._promedios_por_producto(CANASTA, PRECIOS)

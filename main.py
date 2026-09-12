@@ -1767,11 +1767,17 @@ def _sin_ninguna_cadena(canasta: list, precios: dict) -> list[str]:
 
 def _promedios_por_producto(canasta: list, precios: dict) -> dict:
     """
-    Promedio de mercado por producto, en precio por unidad de contenido.
+    Referencia de mercado por producto, en precio por unidad de contenido.
 
-    Se promedia `precio_base` —el comparable—, NUNCA el precio del envase ni
-    `valor` (el presentable). Promediar envases haría que un pack de 320 m infle
-    la base y todas las cadenas aparezcan ahorrando.
+    El estimador es la MEDIANA, no la media. Medido sobre las 5 fixtures
+    (Tarea 16): dentro de UNA misma cadena, los candidatos que pasan
+    `UMBRAL_MATCH` difieren hasta 9,78x en precio por unidad — un representante
+    mal matcheado no es raro, es frecuente. Con n de 2 a 5, una media se va con
+    ese outlier y ninguna cadena se parece al número resultante.
+
+    Se usa `precio_base` —el comparable—, NUNCA el precio del envase ni `valor`
+    (el presentable). Promediar envases haría que un pack de 320 m infle la base
+    y todas las cadenas aparezcan ahorrando.
 
     Solo se promedian representantes con la MISMA `unidad_base`: si en una cadena
     el papel higiénico parseó como metros y en otra como unidades, no son
@@ -1799,11 +1805,16 @@ def _promedios_por_producto(canasta: list, precios: dict) -> dict:
         if not por_unidad:
             continue
         unidad = min(por_unidad, key=lambda u: (-len(por_unidad[u]), u))
-        valores = por_unidad[unidad]
+        valores = sorted(por_unidad[unidad])
+        n = len(valores)
+        medio = (valores[n // 2] if n % 2
+                 else (valores[n // 2 - 1] + valores[n // 2]) / 2)
         out[nombre] = {
-            "precio_base": round(sum(valores) / len(valores), 6),
+            "precio_base": round(medio, 6),
             "unidad_base": unidad,
-            "n_cadenas": len(valores),
+            "n_cadenas": n,
+            # Explícito para que nadie lo lea como media dentro de seis meses.
+            "estimador": "mediana",
         }
     return out
 
