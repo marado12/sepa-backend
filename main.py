@@ -1739,6 +1739,197 @@ def _canasta_optima(canasta, precios):
 
 
 # ─────────────────────────────────────────────
+#  FICHAS POR SUPERMERCADO — el reemplazo del ranking
+#  (Bloque A paso 3 · claude/BLOQUE-A-PASO-3-FICHAS.md)
+# ─────────────────────────────────────────────
+#
+# El ranking ordenaba canastas incomparables y no lo decía: una cadena con 3 de 6
+# productos encabezaba como "la más barata" ($11.189) y otra con 4 de 6 quedaba
+# última ($18.121), porque un producto no encontrado suma 0 al total. El orden
+# premiaba a la cadena que MENOS tenía.
+#
+# El reemplazo no es otro orden: es un RATIO contra el promedio de mercado.
+# Numerador y denominador recorren el mismo conjunto de filas, así que el número
+# no crece con la cobertura. Si alguien lo convierte en una suma, vuelve el bug —
+# por eso `test_fichas.py` tiene dos tests dedicados a impedirlo.
+
+
+def _sin_ninguna_cadena(canasta: list, precios: dict) -> list[str]:
+    """
+    Productos que NINGUNA cadena tiene.
+
+    Salen del divisor de cobertura: si tahini no lo tiene nadie, no es mérito ni
+    demérito de ninguna cadena. Van a un aviso aparte.
+    """
+    con_precio = {prod for _, prod in precios}
+    return [p["nombre"] for p in canasta if p["nombre"] not in con_precio]
+
+
+def _promedios_por_producto(canasta: list, precios: dict) -> dict:
+    """
+    Promedio de mercado por producto, en precio por unidad de contenido.
+
+    Se promedia `precio_base` —el comparable—, NUNCA el precio del envase ni
+    `valor` (el presentable). Promediar envases haría que un pack de 320 m infle
+    la base y todas las cadenas aparezcan ahorrando.
+
+    Solo se promedian representantes con la MISMA `unidad_base`: si en una cadena
+    el papel higiénico parseó como metros y en otra como unidades, no son
+    promediables. Gana el grupo con más cadenas; ante empate, el menor
+    alfabéticamente — determinismo, no criterio. Es la misma familia de falla que
+    `NO_SUPERMERCADO` y el vocabulario de unidades: si la regla no se escribe, se
+    arma sola con la cadena que más productos tenga.
+
+    `n_cadenas` viaja siempre: un promedio de dos no es "el mercado".
+    """
+    out: dict[str, dict] = {}
+    for prod in canasta:
+        nombre = prod["nombre"]
+        por_unidad: dict[str, list[float]] = {}
+        for (_cadena, producto), entry in precios.items():
+            if producto != nombre:
+                continue
+            pu = entry.get("precio_por_100u")
+            if not pu:
+                continue
+            base, unidad = pu.get("precio_base"), pu.get("unidad_base")
+            if not unidad or base is None or base <= 0:
+                continue
+            por_unidad.setdefault(unidad, []).append(float(base))
+        if not por_unidad:
+            continue
+        unidad = min(por_unidad, key=lambda u: (-len(por_unidad[u]), u))
+        valores = por_unidad[unidad]
+        out[nombre] = {
+            "precio_base": round(sum(valores) / len(valores), 6),
+            "unidad_base": unidad,
+            "n_cadenas": len(valores),
+        }
+    return out
+
+
+def _estado_fila(entry: dict | None, promedio: dict | None) -> str:
+    """
+    Por qué una fila no muestra porcentaje. Los cinco casos que antes se veían
+    todos igual —un guion, un cero, o nada— y eran indistinguibles entre sí.
+    """
+    if entry is None:
+        return "faltante"
+    pu = entry.get("precio_por_100u")
+    if not pu:
+        return "manual" if entry.get("fuente") == "manual" else "sin_metrica"
+    if promedio is None:
+        return "sin_metrica"
+    if pu.get("unidad_base") != promedio["unidad_base"]:
+        return "unidad_distinta"
+    if promedio["n_cadenas"] < 2:
+        # El promedio sería la propia cadena y el delta daría 0,0% por
+        # construcción: un cero que se lee como "está justo en el promedio".
+        return "unico"
+    return "ok"
+
+
+def _fichas(canasta: list, precios: dict, resultado: dict, promedios: dict,
+            cadenas: list, promos_sitio_por_cadena: dict | None = None) -> list[dict]:
+    """
+    Una ficha por cadena, ordenadas por cobertura y después alfabético.
+
+    El orden no afirma nada: no hay podio ni "más barato". Lo que compara es el
+    `delta_pct` fila por fila, que es el nivel donde la comparación es válida.
+    """
+    tiene: dict[str, list[str]] = {}
+    for (cadena, producto) in precios:
+        tiene.setdefault(producto, []).append(cadena)
+
+    nadie = set(_sin_ninguna_cadena(canasta, precios))
+    comparables = [p for p in canasta if p["nombre"] not in nadie]
+
+    fichas = []
+    for cadena in cadenas:
+        d = resultado.get(cadena)
+        detalle_out, faltantes = [], []
+        pagado = esperado = 0.0
+        filas_con_promedio = []
+
+        for prod in comparables:
+            nombre = prod["nombre"]
+            entry = precios.get((cadena, nombre))
+            promedio = promedios.get(nombre)
+            estado = _estado_fila(entry, promedio)
+
+            fila = {
+                "producto": nombre,
+                "estado": estado,
+                "cantidad": prod["cantidad"],
+                "precio_unit": entry["precio_min"] if entry else None,
+                "subtotal": (entry["precio_min"] * prod["cantidad"]) if entry else 0,
+                "ok": entry is not None,
+                "precio_por_100u": entry.get("precio_por_100u") if entry else None,
+                "promedio": promedio,
+                "delta_pct": None,
+            }
+            if estado == "faltante":
+                faltantes.append(nombre)
+                # Saber quién sí lo tiene es accionable; un guion no.
+                fila["tambien_en"] = sorted(tiene.get(nombre, []))
+            elif estado == "ok":
+                pu = entry["precio_por_100u"]
+                esp = promedio["precio_base"] * pu["cantidad_base"] * prod["cantidad"]
+                if esp > 0:
+                    fila["delta_pct"] = round(fila["subtotal"] / esp * 100 - 100, 1)
+                    pagado += fila["subtotal"]
+                    esperado += esp
+                    filas_con_promedio.append(fila)
+            detalle_out.append(fila)
+
+        # El reintegro se acota a las filas con promedio: si no, se resta un
+        # reintegro calculado sobre TODA la canasta de un numerador parcial, y el
+        # descuento sale inflado. La plata que muestra la ficha sigue siendo la real.
+        r_total = float(d["reintegro"]) if d else 0.0
+        total_envase = float(d["total_base"]) if d else 0.0
+        r_acotado = 0.0
+        if r_total > 0 and filas_con_promedio:
+            if d.get("origen_promo") == "sitio" and promos_sitio_por_cadena:
+                # `reintegro_para` ya acota por producto: exacto, no proporcional.
+                _n, r_acotado, _c, _b = promos_sitio.reintegro_para(
+                    cadena, promos_sitio_por_cadena.get(cadena) or [], filas_con_promedio)
+            elif total_envase > 0:
+                # Promo bancaria de cadena: se aplica parejo a toda la compra, así
+                # que la parte atribuible a las filas comparables es proporcional.
+                r_acotado = r_total * (pagado / total_envase)
+
+        if esperado > 0:
+            delta_sin = round(pagado / esperado * 100 - 100, 1)
+            delta_fin = round((pagado - r_acotado) / esperado * 100 - 100, 1)
+        else:
+            # None, nunca 0.0: un cero se lee como "exactamente en el promedio",
+            # que es lo contrario de "no tengo con qué compararlo".
+            delta_sin = delta_fin = None
+
+        fichas.append({
+            "cadena": cadena,
+            "n_disponibles": d["n_encontrados"] if d else 0,
+            "n_comparables": len(comparables),
+            "faltantes": faltantes,
+            "total_envase": round(total_envase, 2),
+            "reintegro": round(r_total, 2),
+            "total_final": float(d["total_final"]) if d else 0.0,
+            "promo": ({"label": d["mejor_promo"], "origen": d["origen_promo"],
+                       "banco": d["banco_promo"],
+                       "cuotas_sin_interes": d["mejor_cuotas_sin_interes"]}
+                      if d and d["mejor_promo"] else None),
+            "n_con_promedio": len(filas_con_promedio),
+            "total_a_promedio": round(esperado, 2),
+            "delta_pct_sin_promo": delta_sin,
+            "delta_pct_final": delta_fin,
+            "detalle": detalle_out,
+        })
+
+    fichas.sort(key=lambda f: (-f["n_disponibles"], f["cadena"]))
+    return fichas
+
+
+# ─────────────────────────────────────────────
 #  MODELOS PYDANTIC
 # ─────────────────────────────────────────────
 
@@ -2468,6 +2659,18 @@ async def comparar(req: ComparacionRequest):
     resultado    = _analizar(canasta, precios, promos, dia, promos_del_sitio)
     optimo       = _canasta_optima(canasta, precios)
 
+    # ── Fichas por supermercado (Bloque A paso 3) ──
+    # Qué cadenas merecen ficha: las que se consultaron, no solo las que dieron
+    # precio. Una cadena que está en tu radio y no tiene NADA de la canasta es
+    # información; hoy desaparecía y se veía igual que "no está cerca tuyo".
+    cadenas_ficha = sorted(set(
+        meta_fuente.get("cadenas_consultadas") or [c for c, _ in precios]
+    ))
+    promedios = _promedios_por_producto(canasta, precios)
+    fichas = _fichas(canasta, precios, resultado, promedios, cadenas_ficha,
+                     promos_del_sitio)
+    sin_ninguna = _sin_ninguna_cadena(canasta, precios)
+
     # Ordenar cadenas por total_final
     ranking = sorted(
         [(cadena, d) for cadena, d in resultado.items() if d["total_base"] > 0],
@@ -2488,6 +2691,15 @@ async def comparar(req: ComparacionRequest):
         # roadmap 4.1: promos leídas del sitio, por cadena
         "promos_sitio": promos_sitio.a_json(promos_del_sitio),
         "elapsed_s": round(elapsed, 2),
+        # Bloque A paso 3: las fichas reemplazan al ranking. Ordenadas por
+        # cobertura y después alfabético — el orden no afirma nada.
+        "fichas": fichas,
+        "sin_ninguna_cadena": sin_ninguna,   # no penalizan a ninguna ficha
+        "n_pedidos": len(canasta),           # para el aviso "4 de los 6 que pediste"
+        # DEPRECADO: `ranking` sobrevive una release porque App.jsx:205 lo lee sin
+        # optional chaining y sacarlo ahora rompe producción entre el deploy del
+        # backend y el del frontend. Se borra junto con `_analizar` en la limpieza
+        # posterior a la Tarea 14.
         "ranking": [
             {
                 "cadena": c,

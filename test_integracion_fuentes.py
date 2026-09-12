@@ -345,6 +345,53 @@ def test_una_cadena_fuera_de_cadenas_keywords_se_reporta():
         "una cadena con precio que el optimizador ignora tiene que reportarse"
 
 
+# ── Fichas: el reemplazo del ranking (Bloque A paso 3) ───────────
+def test_la_respuesta_trae_fichas_y_el_alias_ranking():
+    """
+    Mientras dure la ventana de deprecación los dos conviven. `ranking` no se
+    puede sacar todavía: `App.jsx:205` lo lee sin optional chaining y el frontend
+    reventaría entre el deploy del backend y el de la Tarea 14.
+    """
+    main = cargar_main("online")
+    with patch.object(main, "_get_fuente_online", return_value=FuenteFalsa()):
+        r = _pedir(main)
+    d = r.json()
+    assert r.status_code == 200, r.text
+    assert "fichas" in d and d["fichas"]
+    assert "ranking" in d, "el alias no puede desaparecer todavía"
+    assert "sin_ninguna_cadena" in d and "n_pedidos" in d
+
+
+def test_fichas_y_ranking_no_se_contradicen_en_la_plata():
+    """
+    Las dos salidas vienen del mismo `_analizar`, así que no pueden diferir en
+    pesos. Si divergen, el alias está mal hecho y el usuario vería un número
+    distinto según qué versión del frontend tenga.
+    """
+    main = cargar_main("online")
+    with patch.object(main, "_get_fuente_online", return_value=FuenteFalsa()):
+        d = _pedir(main).json()
+
+    por_ranking = {f["cadena"]: f for f in d["ranking"]}
+    for ficha in d["fichas"]:
+        if ficha["cadena"] not in por_ranking:
+            assert ficha["n_disponibles"] == 0, ficha["cadena"]
+            continue
+        viejo = por_ranking[ficha["cadena"]]
+        assert ficha["total_final"] == viejo["total_final"], ficha["cadena"]
+        assert ficha["reintegro"] == viejo["reintegro"], ficha["cadena"]
+        assert ficha["n_disponibles"] == viejo["n_encontrados"], ficha["cadena"]
+
+
+def test_las_fichas_se_ordenan_por_cobertura_no_por_precio():
+    """No hay podio: el orden es cobertura desc y después alfabético."""
+    main = cargar_main("online")
+    with patch.object(main, "_get_fuente_online", return_value=FuenteFalsa()):
+        fichas = _pedir(main).json()["fichas"]
+    claves = [(-f["n_disponibles"], f["cadena"]) for f in fichas]
+    assert claves == sorted(claves), [f["cadena"] for f in fichas]
+
+
 def test_toda_cadena_online_esta_en_cadenas_keywords():
     """
     Guardia del hallazgo 12, y la parte que de verdad protege a futuro.
