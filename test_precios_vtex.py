@@ -203,6 +203,84 @@ def test_canasta_vacia_devuelve_vacio():
     assert precios == {} and meta["productos_pedidos"] == 0
 
 
+# ── 'pack' no es una restricción de contenido (Tarea 20) ─────────
+#
+# "1 pack" quiere decir "un paquete, el tamaño me da igual", no "un ítem de
+# contenido". `_cantidad_objetivo` excluía "unidad" y "u" pero NO "pack", así que
+# deducía (1.0, 'count') y el paso 3 de puntuar() castigaba todo candidato que
+# declarara otra medida. Medido sobre las 5 fixtures: los candidatos aceptados de
+# papel higiénico cayeron de 103 a 55 al habilitar metros en el paso 1, y el
+# representante de Carrefour pasó a ser un PORTARROLLOS de plástico.
+#
+# `CANASTA_DEFAULT` usa unidad 'pack' en papel higiénico y en huevos, así que
+# esto se estaba sirviendo a todo usuario que no armara su propia canasta.
+
+def _fixtures_papel(cadena):
+    """Ofertas reales de papel higiénico de una cadena, del parser de producción."""
+    from tests.evaluar_matching import cargar
+    from tests.medir_regresion import FIXTURES
+    datos = cargar({cadena: FIXTURES[cadena]})
+    return [o for o in datos[cadena]["Papel higienico"] if o.disponible and o.precio > 0]
+
+
+def _elegido(item, ofertas, extraer):
+    """Mismo desempate que buscar_precios_online: mejor score, a igual score el más barato."""
+    arriba = [(puntuar(item, o, normalizar, extraer), o) for o in ofertas]
+    arriba = [(s, o) for s, o in arriba if s >= UMBRAL_MATCH]
+    if not arriba:
+        return None
+    return max(arriba, key=lambda f: (f[0], -f[1].precio))[1]
+
+
+def test_pack_no_fija_un_objetivo_de_cantidad():
+    """
+    De las seis unidades que ofrece el frontend (unidad · kg · gramos · litro ·
+    ml · pack), 'pack' es la única donde el número NO describe contenido.
+    """
+    from precios_vtex import _cantidad_objetivo
+    import main
+    assert _cantidad_objetivo({"nombre": "Papel higienico", "cantidad": 1,
+                               "unidad": "pack"},
+                              main._extraer_cantidades_desc) is None
+    # las que sí describen contenido siguen fijando objetivo
+    assert _cantidad_objetivo({"nombre": "Leche", "cantidad": 1, "unidad": "litro"},
+                              main._extraer_cantidades_desc) == (1000.0, "volumen")
+
+
+def test_papel_higienico_no_elige_un_portarrollos():
+    """
+    El caso exacto que estaba en producción. Contra la fixture real de Carrefour,
+    "papel higiénico, 1 pack" tiene que elegir papel higiénico — el pack de 320 m
+    a $5.899 — y no el "Palito porta rollo" de $3.500, que ganaba porque no
+    declara cantidad y así esquivaba la penalización.
+    """
+    import main
+    item = {"nombre": "Papel higienico", "cantidad": 1, "unidad": "pack"}
+    elegido = _elegido(item, _fixtures_papel("Carrefour"), main._extraer_cantidades_desc)
+
+    assert elegido is not None
+    assert "porta rollo" not in elegido.producto.lower(), (
+        "el representante de papel higiénico es un accesorio: %r" % elegido.producto)
+    assert "80 m" in elegido.producto, elegido.producto
+
+
+def test_huevos_por_pack_no_castiga_al_maple_de_12():
+    """
+    El otro ítem de CANASTA_DEFAULT con unidad 'pack'. Pedir "2 pack" deducía
+    (2, count) y castigaba un maple de 12 con ratio 2/12 < 0.5 -> score x0.7.
+    Las fixtures no traen huevos, así que este caso va con ofertas armadas.
+    """
+    import main
+    item = {"nombre": "Huevos", "cantidad": 2, "unidad": "pack"}
+    maple = Oferta(cadena="Día", producto="Huevos blancos x 12 unidades",
+                   precio=3600.0, origen="vtex")
+    s = puntuar(item, maple, normalizar, main._extraer_cantidades_desc)
+    sin_unidad = puntuar({"nombre": "Huevos", "cantidad": 2, "unidad": "unidad"},
+                         maple, normalizar, main._extraer_cantidades_desc)
+    assert s == sin_unidad, (
+        "'pack' no puede puntuar distinto que 'unidad': %s vs %s" % (s, sin_unidad))
+
+
 if __name__ == "__main__":
     fallos = 0
     for nombre, fn in sorted(globals().items()):

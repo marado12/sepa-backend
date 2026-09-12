@@ -104,11 +104,27 @@ def puntuar(item: dict, oferta: Oferta,
     return round(min(score, 1.0), 3)
 
 
+# Unidades que NO describen contenido: el número que las acompaña no es una
+# restricción de tamaño. "1 pack" quiere decir "un paquete, el tamaño me da
+# igual"; leerlo como "un ítem de contenido" hace que el paso 3 castigue todo
+# candidato que declare otra medida.
+#
+# `pack` faltaba, y estaba en producción: `CANASTA_DEFAULT` lo usa en papel
+# higiénico y en huevos. Medido sobre las 5 fixtures, con metros habilitados los
+# candidatos aceptados de papel higiénico caían de 103 a 55 y el representante de
+# Carrefour pasaba a ser un PORTARROLLOS de plástico de $3.500 en vez del pack de
+# 320 m. En huevos, un maple de 12 puntuaba 0,513 con 'pack' y 0,733 con 'unidad'.
+#
+# Si alguna vez se cablea `cantidad_pack` (Tarea 17), el objetivo de tamaño sale
+# de ESE campo, no de la unidad — este arreglo es compatible con esa salida.
+_UNIDADES_SIN_CONTENIDO = ("unidad", "u", "pack", "")
+
+
 def _cantidad_objetivo(item: dict, extraer_cantidades: Callable[[str], list]):
     """Cantidad pedida, del campo estructurado o del texto del nombre."""
     cant = item.get("cantidad")
     unidad = (item.get("unidad") or "").strip().lower()
-    if cant and unidad and unidad not in ("unidad", "u", ""):
+    if cant and unidad and unidad not in _UNIDADES_SIN_CONTENIDO:
         for val, tipo in (extraer_cantidades(f"{cant} {unidad}") or []):
             return (val, tipo)
     for val, tipo in (extraer_cantidades(item.get("nombre") or "") or []):
