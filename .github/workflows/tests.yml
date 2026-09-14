@@ -42,6 +42,7 @@ jobs:
         python test_generar_sucursales.py   # T.6 hallazgo 11 — guard antes de pisar data/sucursales.csv
         python test_unidades.py             # Bloque A paso 1 — vocabulario de unidades + cobertura POR CADENA
         python test_fichas.py               # Bloque A paso 3 — fichas, promedio de mercado, el % que no es una suma
+        python test_pesables.py             # Tarea 25 — pesables: Price es el kilo; guards por cadena contra el carrito simulado
         python test_metrica_titulos.py      # Tarea 19 — "N × M" con títulos reales: total del papel, sin métrica donde la forma no decide
 
     # sucursales.py está escrito con csv de stdlib a propósito: tiene que poder

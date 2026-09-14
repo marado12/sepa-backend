@@ -44,15 +44,20 @@ class Oferta:
     promos: list[str] = field(default_factory=list)   # Teasers de VTEX → roadmap 4.1
     disponible: bool = True
     origen: str = ""                       # "vtex", "coto", "sepa", "manual"
-    # Contenido declarado por la propia API, sin parsear el nombre. VTEX lo trae
-    # en `measurementUnit` + `unitMultiplier`: un pollo "x kg" viene con
-    # measurementUnit="kg" y unitMultiplier=3.0, o sea 3 kg exactos. Es más
-    # confiable que leer "x kg" del título, que no dice cuánto pesa.
-    # Verificado el 11/09 contra la API de Carrefour: `Price` es lo que paga el
-    # cliente por el artículo (las cuotas dan el mismo total), NO el precio del
-    # kilo — así que el total no se sobreestima.
+    # Qué cubre `precio`: `contenido` × `unidad_medida`, declarado por la propia
+    # fuente, sin parsear el nombre.
+    # ✏️ Hasta la Tarea 25 (14/09) este comentario decía que `Price` era el precio
+    # del artículo y `unitMultiplier` su contenido ("verificado el 11/09: las cuotas
+    # dan el mismo total"). Era falso. MEDIDO contra el carrito de VTEX (la simulación
+    # de checkout reproduce el de Santiago: pollo de Día, $13.170): `Price` cotiza UNA
+    # unidad de medida —el kilo— y `unitMultiplier` es el PASO DE VENTA, lo que agrega
+    # un click (Vea vende el "Pollo Entero 2 Kg" de a 0,5 kg), no el paquete. El
+    # carrito cobra FullSellingPrice = Price × unitMultiplier en 284 de 284 filas.
+    # Un pesable queda como precio del kilo con contenido 1 (decisión de Santiago: la
+    # cantidad de la canasta de un pesable son kilos); una "un" con multiplicador,
+    # como lo que cobra el click, con contenido = multiplicador.
     unidad_medida: Optional[str] = None     # "kg", "un", "g", "lt"…
-    contenido: Optional[float] = None       # cuántas `unidad_medida` trae el artículo
+    contenido: Optional[float] = None       # cuántas `unidad_medida` cubre `precio`
     ts: str = field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
 
     @property
@@ -167,14 +172,25 @@ def _nombres_teasers(teasers) -> list[str]:
     return vistos
 
 
-def _precio_lista(oferta: dict, precio: float) -> Optional[float]:
+# `measurementUnit` que no dicen contenido: son "una unidad", que es lo mismo que no
+# declarar nada. Vive acá y no en precios_vtex.py porque `_a_oferta` la necesita para
+# decidir qué cotiza el precio, y precios_vtex importa de este módulo.
+_UNIDAD_SIN_CONTENIDO = {"un", "unidad", "unidades", "u"}
+
+
+def _precio_lista(oferta: dict, precio: float, multiplicador: float = 1.0) -> Optional[float]:
     """
-    El precio tachado, o None si no hay oferta real.
+    El precio tachado, o None si no hay oferta real. En la escala de `Price`.
 
     No alcanza con `ListPrice or PriceWithoutDiscount`: en Vea el ListPrice está en
     otra escala y daba 98,8% de descuento en todo el catálogo; en Carrefour, en cambio,
     el ListPrice SÍ es el precio tachado correcto y el PriceWithoutDiscount es menor.
     Por eso se toma el mayor de los candidatos que produzca un descuento creíble.
+
+    `FullSellingPrice` es Price × unitMultiplier —lo que cobra un click—, así que se
+    divide por el multiplicador antes de compararlo. MEDIDO (Tarea 25): sin dividir, el
+    pollo `kg`/3.0 daba 66,7% OFF y las medialunas `un`/6 83,3%; 30 descuentos falsos en
+    las tres capturas.
     """
     candidatos = []
     for campo in ("ListPrice", "PriceWithoutDiscount", "FullSellingPrice"):
@@ -183,6 +199,8 @@ def _precio_lista(oferta: dict, precio: float) -> Optional[float]:
             v = float(v) if v else 0.0
         except (TypeError, ValueError):
             continue
+        if campo == "FullSellingPrice" and multiplicador:
+            v /= multiplicador
         if v > precio and (1 - precio / v) * 100 <= DESCUENTO_MAX_PCT:
             candidatos.append(v)
     return max(candidatos) if candidatos else None
@@ -261,14 +279,37 @@ class FuenteVTEX:
         if precio in (None, 0):
             return None
 
-        precio = float(precio)
-        lista = _precio_lista(oferta, precio)
-        teasers = _nombres_teasers(oferta.get("Teasers"))
-
+        price = float(precio)
+        unidad = (item.get("measurementUnit") or "").strip().lower()
         try:
-            contenido = float(item.get("unitMultiplier"))
+            multiplicador = float(item.get("unitMultiplier"))
         except (TypeError, ValueError):
-            contenido = None
+            multiplicador = None
+
+        # Qué cotiza `precio` (Tarea 25, ver `Oferta`):
+        #  - unidad con contenido (kg, g, lt…): `Price`, el precio de UNA unidad de medida.
+        #    El paso de venta no entra: "2 kg de pollo" son 2 × el kilo en las 5 cadenas.
+        #  - "un" con multiplicador ≠ 1: un click son `multiplicador` unidades y el carrito
+        #    cobra FullSellingPrice ("Medialunas 6u": $609 la unidad, $3.654 el click). El
+        #    contenido sale del título, que describe lo que se compra.
+        #  - "un" / 1.0, la inmensa mayoría: Price == FullSellingPrice, no cambia nada.
+        escala = 1.0
+        if unidad and unidad not in _UNIDAD_SIN_CONTENIDO:
+            precio, contenido = price, 1.0
+        elif multiplicador and multiplicador != 1.0:
+            escala = multiplicador
+            try:
+                precio = float(oferta.get("FullSellingPrice") or 0) or round(price * multiplicador, 2)
+            except (TypeError, ValueError):
+                precio = round(price * multiplicador, 2)
+            contenido = multiplicador
+        else:
+            precio, contenido = price, multiplicador
+
+        lista = _precio_lista(oferta, price, multiplicador or 1.0)
+        if lista is not None:
+            lista = round(lista * escala, 2)
+        teasers = _nombres_teasers(oferta.get("Teasers"))
 
         return Oferta(
             cadena=cadena,
@@ -412,6 +453,13 @@ class FuenteCoto:
             # OJO: `sku.referencePrice` NO es el precio tachado, es el precio por unidad
             # de medida (papel higiénico: activePrice 7396,99 · referencePrice 184,93 el m²).
             # Usarlo como precio_lista repetiría el bug de Vea. Las promos vienen aparte.
+            #
+            # Pesables: `activePrice` es el precio del KILO. MEDIDO (Tarea 25, 14/09): 57
+            # pesables, todos descUnidad=KGS; activePrice == referencePrice en los 35 que
+            # traen referencia. Misma regla que VTEX: contenido 1 kg. El paso de venta
+            # (`saltoCantidad`) no se usa: está en 18 de 57 y nadie vio el carrito de Coto.
+            por_kilo = (str(cls._uno(attrs, "product.unidades.esPesable") or "") == "1"
+                        and str(cls._uno(attrs, "product.unidades.descUnidad") or "").strip().upper() == "KGS")
             out.append(Oferta(
                 cadena="Coto",
                 producto=str(nombre).strip(),
@@ -421,6 +469,8 @@ class FuenteCoto:
                 marca=cls._uno(attrs, "product.brand"),
                 promos=cls._promos(attrs),
                 origen="coto",
+                unidad_medida="kg" if por_kilo else None,
+                contenido=1.0 if por_kilo else None,
             ))
         return out
 

@@ -21,7 +21,7 @@ import logging
 import re
 from typing import Callable, Optional
 
-from fuentes import Fuente, Oferta, Resultado
+from fuentes import _UNIDAD_SIN_CONTENIDO, Fuente, Oferta, Resultado
 
 log = logging.getLogger(__name__)
 
@@ -177,9 +177,8 @@ def precio_unitario(precio: float, cantidad_base: float, tipo: str,
     }
 
 
-# `measurementUnit` que no dicen contenido: son "una unidad", que es lo mismo que
-# no declarar nada. Para esos hay que seguir leyendo el título.
-_UNIDAD_SIN_CONTENIDO = {"un", "unidad", "unidades", "u"}
+# `_UNIDAD_SIN_CONTENIDO` ("un", "unidad"…) vive en fuentes.py: `_a_oferta` la necesita
+# para decidir qué cotiza el precio. Con esas unidades hay que seguir leyendo el título.
 
 
 def _precio_por_100u(oferta: Oferta, extraer_cantidades: Optional[Callable[[str], list]],
@@ -187,9 +186,11 @@ def _precio_por_100u(oferta: Oferta, extraer_cantidades: Optional[Callable[[str]
     """
     Misma forma que `_calcular_precio_unitario` de main.py.
 
-    Primero lo que declara la API (`measurementUnit` + `unitMultiplier`), que es
-    exacto; recién después se lee el título. Un pollo "x kg" no dice en el nombre
-    cuánto pesa, pero la API sí: unitMultiplier=3.0 con measurementUnit="kg".
+    Primero lo que declara la fuente (`unidad_medida` + `contenido`: qué cubre
+    `oferta.precio`); recién después se lee el título. Un pesable "x kg" no dice en
+    el nombre cuánto pesa, y no hace falta: su precio es el del kilo, contenido 1 kg.
+    ✏️ Hasta la Tarea 25 el contenido era `unitMultiplier` dividiendo al precio del
+    kilo: el pollo `kg`/3.0 salía 3× abaratado y el tomate `kg`/0.1, 10× encarecido.
     """
     if not extraer_cantidades:
         return None

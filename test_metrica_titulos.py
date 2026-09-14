@@ -26,7 +26,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import main
-from precios_vtex import _precio_por_100u
+from precios_vtex import _UNIDAD_SIN_CONTENIDO, _precio_por_100u
 from tests import medir_metrica_vivo as instrumento
 
 CAPTURA = Path(__file__).resolve().parent / "tests" / "capturas" / "metrica_vivo_2026-09-13.json"
@@ -187,10 +187,16 @@ def test_el_nxm_pelado_sigue_multiplicando():
 # Filas disponibles cuya referencia es "solo medida" (una medida, ningún contable: "Coca Cola
 # 2,25 L") y donde el backend coincide con ella. Medido sobre la captura ANTES del fix (a71c83d).
 # La regla de ambigüedad no tiene ningún motivo para tocarlas: si este número baja, se aplicó más
-# ancha de lo decidido. Las dos que no coinciden (de 281) no son de este bug: "Carne Picada Magra
-# 800 G" de Chango Más, donde la API manda 0,65 kg y gana (Tarea 19, punto 6: pesables), y
-# "Cerveza Lata BRAHMA 350 Cmq" de Coto, porque `cmq` no está en el vocabulario.
-SOLO_MEDIDA_COINCIDE_MIN = {"Carrefour": 82, "Día": 53, "Vea": 34, "Chango Más": 76, "Coto": 34}
+# ancha de lo decidido. La que no coincide (de 278) no es de este bug: "Cerveza Lata BRAHMA 350
+# Cmq" de Coto, porque `cmq` no está en el vocabulario.
+# ✏️ Tarea 25 (14/09): salen del conjunto las filas cuya fuente declara una unidad de medida con
+# contenido (los pesables). Ahí el título no dice lo que cotiza el precio: "Pollo Entero Fresco 3 Kg"
+# cuesta $3.989 EL KILO y su métrica cubre 1 kg, no 3. Contra el título eran 3 filas de Chango Más
+# (los dos pollos "3 Kg" y "Carne Picada Magra 800 G", kg/0.65): antes 2 "coincidían" con la métrica
+# 3× abaratada y la carne no; ahora las tres tienen el $/kg correcto. No perdieron métrica: la
+# referencia de este test era el supuesto desmentido. Los pesables se prueban contra el carrito en
+# test_pesables.py. Chango Más baja de 76 a 74 por eso, no porque se haya caído nada.
+SOLO_MEDIDA_COINCIDE_MIN = {"Carrefour": 82, "Día": 53, "Vea": 34, "Chango Más": 74, "Coto": 34}
 
 
 def test_una_sola_medida_conserva_su_metrica():
@@ -199,6 +205,8 @@ def test_una_sola_medida_conserva_su_metrica():
         ref = f["ref"]
         if not f["of"].disponible or ref.get("motivo") != "solo medida":
             continue
+        if (f["of"].unidad_medida or "").strip().lower() not in _UNIDAD_SIN_CONTENIDO | {""}:
+            continue            # pesable: el título no es la referencia (ver arriba)
         total[c] += 1
         pu = _metrica(f["of"])
         coincide[c] += bool(pu and pu["tipo"] == ref["tipo"] and _cerca(pu["cantidad_base"], ref["base"]))
