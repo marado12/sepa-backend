@@ -341,7 +341,9 @@ def validar(filas):
     for c in CADENAS:
         for q, fs in filas[c].items():
             for f in fs:
-                mu = ((f.get("api") or (None, None))[0] or "").strip().lower()
+                # ✏️ Tarea 25: se lee de la Oferta, no del crudo VTEX. Desde el fix, los pesables de
+                # Coto (esPesable=1, descUnidad=KGS) también declaran unidad_medida="kg" y contenido 1.
+                mu = (f["of"].unidad_medida or "").strip().lower()
                 sin_api = not mu or mu in _UNIDAD_SIN_CONTENIDO or not f["of"].contenido
                 if sin_api and f["pu"] != f["pu_tit"]:
                     errores.append(f"(a) {c}/{q}: {f['of'].producto!r} api={f.get('api')} "
@@ -437,7 +439,8 @@ def informe_api(filas):
             api = sum(1 for f in disp if f["pu"] and f["pu"].get("fuente_contenido") == "api")
             dist = ", ".join(f"{mu}/{um}×{n}" for (mu, um), n in cnt.most_common(4))
             print(f"    {q:<18} filas={len(fs):<3} disp={len(disp):<3} gana api={api:<3} {dist}")
-    print("\n  Coto: el parser (fuentes.py:415-424) no llena unidad_medida/contenido → siempre título.")
+    print("\n  Coto: el parser llena unidad_medida/contenido solo en los pesables (esPesable=1, KGS → 1 kg, "
+          "Tarea 25); el resto, título.")
 
 
 def informe_representantes(filas, reps):
