@@ -39,7 +39,9 @@ Desde sepa_backend/:
     venv\\Scripts\\python.exe -m tests.medir_metrica_vivo --desde tests/capturas/metrica_vivo_2026-09-13.json
 
 La captura del 13/09 19:02 ART es la que respalda el resultado escrito en la Tarea 19
-(continuación). No es una fixture del CI: es la evidencia de esa medición.
+(continuación). Desde el fix de la Tarea 19 (14/09) es además INSUMO DEL CI: `test_metrica_titulos.py`
+la lee con `parsear` y usa `leer_titulo` como referencia. El script sigue fuera del CI; la captura y
+esas dos funciones no. Si tocás cualquiera de las tres, corré ese test.
 """
 import argparse
 import json

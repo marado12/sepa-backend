@@ -553,6 +553,9 @@ _RE_CANT_COUNT = re.compile(
 
 # Regex para doble medida: "6 x 500ml", "4 x 200g", "2x1l"
 # El precio SEPA corresponde al pack completo → normalizamos al total.
+# La LONGITUD no se multiplica acá: la resuelve `_extraer_cantidades_desc` contra
+# los contables del título entero, porque el papel escribe el contable en
+# cualquier orden y esta regex solo conoce "N [u.] x M".
 _RE_CANT_PACK = re.compile(
     # El contable del medio es opcional: Carrefour escribe tanto "4 x 80 m."
     # como "4 u. x 80 m.". Sin contemplarlo, el segundo caía en la regex simple
@@ -564,15 +567,136 @@ _RE_CANT_PACK = re.compile(
 )
 
 
+# ── Contables: cuántos envases declara el título (Tarea 19) ──────────────────
+# `_RE_CANT_PACK` solo multiplicaba "N [u.|un|unid|rollos] x M". Medido el 13/09
+# en vivo contra las 5 cadenas: de 135 papeles "N u. × M" daba el total en 29, y
+# en Día en 0 de 16. Las formas que rompían, todas reales: "30 Mts x 4 Un" (Vea),
+# "30 mts 4 uni" y "x4 30 mts" (Carrefour), "80mts 2 Ud." y "30M Boral 4 Ud."
+# (Día), "30m 4u", "4 U 30 M" y "24u X 50 M" (Chango Más), "30 M 4 Un" y
+# "4 rollos de 30m" (Coto). Por eso se lee el título entero y no la adyacencia.
+#
+# "4 u.", "30 mts 4 uni", "4 Ud.", "24 Rollos": la palabra tiene que cerrar.
+#
+# Ninguna arranca en la parte decimal de un número ("1.50 x 2.00 mts": el 50 no
+# cuenta nada), pero un punto de abreviatura no es un decimal: "simp.4x90m" son 4
+# rollos. Rechazar cualquier punto rompía ese título del SEPA (360 m → 90 m).
+_NO_DECIMAL = r"(?<!\d)(?<!\d\.)"
+
+_RE_CONTABLE_PALABRA = re.compile(
+    _NO_DECIMAL + r"(\d+)\s*(?:unidades|unidad|unids?|unid|uni|un|uds?|u|rollos?)(?![a-z0-9])",
+    re.IGNORECASE,
+)
+# "x4 30 mts", "Pack X 2 190 Gr.", "473mlx6". La x no puede venir de "4 x 30"
+# (eso es _RE_CONTABLE_NX) y el número no puede ser una medida: "x 30 mts" es el
+# largo, "30 M X 10 Cm" el ancho del rollo, "bmx 20w50" un código, y un
+# porcentaje no cuenta nada: "vegetalex 100% vegetal x226g" (SEPA, 04/05).
+_RE_CONTABLE_X = re.compile(
+    _NO_DECIMAL + r"(?<!\d\s)[x×]\s*(\d+)(?!\.?\d)(?![a-z])(?!\s*%)"
+    r"(?!\s*(?:" + _U_ALT + r"|cm|mm|m2)(?![a-z0-9]))",
+    re.IGNORECASE,
+)
+# "4 x 80 m.", "4x30mts", "2x1.75L": un número pegado a una x que sigue con otro.
+# Salvo que sea una medida: "30x30cm" o "20x21x6 cm" no son 30 ni 20 envases. Lo
+# encontró la re-medición sobre el SEPA (04/05): "papel p envolver 30x30cm x 30mts"
+# pasaba de 30 m a 900 m. Tampoco pegado a letras a la izquierda: "mx6x3am" es un
+# código de modelo, y leerlo como 6 envases daba un cable de 6 m en vez de 1. La
+# única letra aceptada es una "x" suelta: "sol mayor x4x30mt" son 4 rollos de 30 m.
+_RE_CONTABLE_NX = re.compile(
+    _NO_DECIMAL + r"(?<![a-wyz])(?<![a-z]x)(\d+)\s*[x×]\s*(?=\d)"
+    r"(?!(?:\d+(?:\.\d+)?\s*[x×]\s*)*\d+(?:\.\d+)?\s*(?:cm|mm)(?![a-z0-9]))",
+    re.IGNORECASE,
+)
+# "2x1.75L", "3 X 90 GRS": el "N x M" pelado, sin palabra de unidad entre N y la x.
+# No necesita excluir "30x30cm": exige una unidad de _U_ALT, y `cm` no está.
+_RE_NXM_PELADO = re.compile(
+    _NO_DECIMAL + r"(\d+)\s*[x×]\s*\d+(?:[.,]\d+)?\s*(" + _U_ALT + r")\b",
+    re.IGNORECASE,
+)
+
+
+def _contables(desc_norm: str) -> set[int]:
+    """Cuántos envases declara el título ("4 u.", "x12", "4 x 30"); solo los mayores que 1."""
+    ns: set[int] = set()
+    for rx in (_RE_CONTABLE_PALABRA, _RE_CONTABLE_X, _RE_CONTABLE_NX):
+        ns.update(int(m.group(1)) for m in rx.finditer(desc_norm))
+    return {n for n in ns if n > 1}
+
+
+def _es_peso_o_volumen(unidad: str) -> bool:
+    return (_a_base(1.0, unidad) or (0.0, ""))[1] in ("peso", "volumen")
+
+
+# Palabras de `_RE_CANT_COUNT` que cuentan envases. En singular no cuentan nada:
+# "fernet 1882 botella x 750 ml", "leche etapa 3 lata x 800 g", "fideos n4 308 paq
+# 500 grm" — el número es parte del nombre y la palabra describe UN envase. Censo del
+# 14/09 (SEPA del 04/05 + capturas en vivo): 11 de 11, y en las 11 la medida que queda
+# es la del artículo. Las abreviaturas (un, u., ud) y "pack" no tienen plural.
+_ENVASES_CONTABLES = {"unidades", "un", "u", "ud", "uds", "rollos", "paquetes", "sobres",
+                      "latas", "botellas", "huevos", "pack"}
+
+
+def _contables_de_envase(desc_norm: str) -> set[int]:
+    """Los contables de `_RE_CANT_COUNT` cuya palabra cuenta envases; solo los mayores que 1."""
+    ns: set[int] = set()
+    for m in _RE_CANT_COUNT.finditer(desc_norm):
+        palabra = re.search(r"[a-z]+\.?$", m.group(0), re.IGNORECASE)
+        if (int(m.group(1)) > 1 and palabra
+                and palabra.group(0).lower().rstrip(".") in _ENVASES_CONTABLES):
+            ns.add(int(m.group(1)))
+    return ns
+
+
+def _forma_ambigua(desc_norm: str) -> bool:
+    """
+    True si el título declara un peso o volumen Y un contable: "Pack x 4 380 Gr.",
+    "95g 4u", "473 CC 6 Unidades". Ahí no se puede decidir si la medida es la de
+    UNA unidad o la del total, y la decisión (Santiago, 13/09) es no publicar
+    métrica: el mismo Danette x4 se publica "pack x4 95 g." y "Pack x 4 380 Gr.".
+    De 36 títulos así leídos a mano el 13/09, 14 daban bien y 22 mal — y en 11 de
+    los 14 era casualidad: M ya era el total.
+
+    Excepción: el "N x M" pelado ("2x1.75L", "3 X 90 GRS") no se contradice en
+    ningún dato visto — 6 de 6 en la captura del 13/09, y la muestra de ~460
+    descripciones del SEPA del 04/05 es toda por unidad. Con palabra de unidad sí
+    se contradice ("4 UNID X 210 GRS" es el total; "6 UNI X 473 CC", por lata), así
+    que "N u. x M" es ambiguo.
+
+    Un título con una sola medida y ningún contable nunca es ambiguo. La longitud
+    tampoco: en el papel "M es por rollo" está verificado.
+    """
+    if not any(_es_peso_o_volumen(m.group(2)) for m in _RE_CANT_DESC.finditer(desc_norm)):
+        return False
+    # Un contable falso acá deja un hueco, nunca un número equivocado: por eso solo se
+    # descartan formas donde lo que queda es, en todos los casos vistos, la medida del
+    # artículo (singular, porcentaje). "3x2" (promo) o "2x48 40 g" siguen siendo ambiguos.
+    contables = _contables(desc_norm) | _contables_de_envase(desc_norm)
+    if not contables:
+        return False
+    pelados = {int(m.group(1)) for m in _RE_NXM_PELADO.finditer(desc_norm)
+               if _es_peso_o_volumen(m.group(2))}
+    return not contables <= pelados
+
+
 def _extraer_cantidades_desc(desc_norm: str) -> list[tuple[float, str]]:
     """
     Extrae todas las cantidades con unidad de una descripción normalizada.
     Ej: "leche entera 1 l la serenisima" → [(1000.0, 'volumen')]
         "huevos x12 unidades" → [(12.0, 'count')]
         "agua 6 x 500ml" → [(3000.0, 'volumen')]  ← pack completo
+        "papel higienico 30 mts x 4 un" → [(120.0, 'longitud')]  ← 4 rollos de 30 m
+        "postre danette pack x4 95 g." → []  ← ¿95 g cada pote o en total? No se sabe
     """
-    resultados = []
+    # Peso o volumen con un contable: la forma del título no deja decidir si la medida
+    # es de una unidad o del total, y no se publica métrica (decisión del 13/09, ver
+    # `_forma_ambigua`). Un hueco es recuperable; un número equivocado, no.
+    if _forma_ambigua(desc_norm):
+        return []
+
+    resultados: list = []
     posiciones_usadas: set[int] = set()  # evita que _RE_CANT_DESC reparse lo ya capturado
+    # Longitudes halladas: (posición en `resultados`, metros por unidad, valor sin
+    # contables). Se resuelven al final contra los contables del título entero.
+    longitudes: list[tuple[int, float, float]] = []
 
     # Doble medida tiene prioridad: "6 x 500ml" → 3000ml (precio del pack completo)
     for m in _RE_CANT_PACK.finditer(desc_norm):
@@ -582,7 +706,11 @@ def _extraer_cantidades_desc(desc_norm: str) -> list[tuple[float, str]]:
             unidad = m.group(3)
             base = _a_base(val_unit * n_pack, unidad)
             if base:
-                resultados.append(base)
+                if base[1] == "longitud":
+                    longitudes.append((len(resultados), _a_base(val_unit, unidad)[0], base[0]))
+                    resultados.append(None)
+                else:
+                    resultados.append(base)
                 posiciones_usadas.update(range(m.start(), m.end()))
         except ValueError:
             pass
@@ -595,9 +723,34 @@ def _extraer_cantidades_desc(desc_norm: str) -> list[tuple[float, str]]:
             unidad = m.group(2)
             base = _a_base(val, unidad)
             if base:
-                resultados.append(base)
+                if base[1] == "longitud":
+                    longitudes.append((len(resultados), base[0], base[0]))
+                    resultados.append(None)
+                else:
+                    resultados.append(base)
         except ValueError:
             pass
+
+    # Longitud: N rollos × M metros, en cualquier orden. "M es por rollo" está
+    # verificado en el papel: sin contraejemplos en 135 títulos de las 5 cadenas, y
+    # coincide con activePrice/referencePrice de Coto en todos los cruces por EAN.
+    # Solo longitud: en peso y volumen la misma forma es ambigua (`_forma_ambigua`).
+    # Cada longitud queda en su posición: reordenar cambia qué métrica gana
+    # ("mamadera 250ml 3m" son 3 meses, y la métrica tiene que seguir siendo ml).
+    # m² no se convierte: "paq 8 m2" no es una longitud (Tarea 22).
+    if longitudes:
+        metros = {por_unidad for _, por_unidad, _ in longitudes}
+        contables = _contables(desc_norm)
+        for pos, por_unidad, sin_contables in longitudes:
+            if len(metros) > 1:
+                resultados[pos] = (sin_contables, "longitud")      # varias medidas: como antes
+            elif len(contables) == 1:
+                resultados[pos] = (por_unidad * next(iter(contables)), "longitud")
+            elif not contables:
+                resultados[pos] = (por_unidad, "longitud")
+            # Dos contables distintos: no se sabe cuántos rollos son → sin longitud.
+        resultados = [r for r in resultados if r is not None]
+
     for m in _RE_CANT_COUNT.finditer(desc_norm):
         try:
             val = float(m.group(1))
