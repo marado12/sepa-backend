@@ -86,12 +86,14 @@ class InstrumentoInvalido(Exception):
 #  S-TAMAÑO: puntuar sin el bonus/penalidad de tamaño
 # ─────────────────────────────────────────────────────────────────
 
-def puntuar_variante(item, of, normalizar, extraer_cantidades, con_tamano=True):
+def puntuar_variante(item, of, normalizar, extraer_cantidades, con_bonus=True, con_castigo=True):
     """
-    Copia de `precios_vtex.puntuar`, con el bonus `+0,20` / penalidad `×0,7` de tamaño detrás
-    de `con_tamano` (decisión 4 de la Tarea 26). El `×0,5` de tipo distinto (peso/volumen) se
-    CONSERVA siempre. Con `con_tamano=True` tiene que dar EXACTAMENTE lo mismo que `puntuar()`
-    — se valida en `validar()` contra todos los candidatos de la captura.
+    Copia de `precios_vtex.puntuar`, con el bonus `+0,20` (`con_bonus`) y la penalidad `×0,7`
+    (`con_castigo`) de tamaño detrás de dos llaves separadas (decisión 4 de la Tarea 26; ✏️ el
+    18/09 Santiago la partió: se saca solo el ×0,7 y el +0,20 se conserva hasta la Tarea 22).
+    El `×0,5` de tipo distinto (peso/volumen) se CONSERVA siempre. Con las dos en True tiene que
+    dar EXACTAMENTE lo mismo que `puntuar()` — se valida en `validar()` contra todos los
+    candidatos de la captura.
     """
     nombre = item.get("nombre") or ""
     if not nombre or not of.producto:
@@ -125,11 +127,12 @@ def puntuar_variante(item, of, normalizar, extraer_cantidades, con_tamano=True):
             iguales = [(v, t) for v, t in cants if t == tipo_obj and v > 0]
             if iguales:
                 val, _ = iguales[0]
-                if con_tamano:
-                    ratio = min(val, val_obj) / max(val, val_obj)
-                    if ratio >= 1 - precios_vtex.TOLERANCIA_CANTIDAD:
+                ratio = min(val, val_obj) / max(val, val_obj)
+                if ratio >= 1 - precios_vtex.TOLERANCIA_CANTIDAD:
+                    if con_bonus:
                         score = min(1.0, score + 0.20)
-                    elif ratio < 0.5:
+                elif ratio < 0.5:
+                    if con_castigo:
                         score *= 0.7
             elif cants:
                 score *= 0.5     # ×0,5 de tipo distinto: se conserva siempre (decisión 4)
@@ -160,6 +163,18 @@ def elegible(prod, of, pu):
 #  parametrizada por S-filtro y S-tamaño
 # ─────────────────────────────────────────────────────────────────
 
+def llaves_tamano(s_tamano):
+    """
+    (con_bonus, con_castigo) para `puntuar_variante`.
+      False   `puntuar` de hoy: +0,20 y ×0,7.
+      True    decisión 4 original: sin +0,20 ni ×0,7.
+      "×0,7"  decisión 4 partida por Santiago el 18/09: sin el ×0,7, CON el +0,20.
+    """
+    if s_tamano == "×0,7":
+        return True, False
+    return (False, False) if s_tamano else (True, True)
+
+
 def seleccionar(canasta, filas, s_filtro=False, s_tamano=False):
     """
     Reimplementación del bucle de selección de `precios_vtex.buscar_precios_online` sobre los
@@ -171,9 +186,10 @@ def seleccionar(canasta, filas, s_filtro=False, s_tamano=False):
         nombre = prod["nombre"]
         for c in CADENAS:
             cands = U.candidatos(filas, c, nombre)
+            con_bonus, con_castigo = llaves_tamano(s_tamano)
             puntuados = [
                 (puntuar_variante(prod, f["of"], main.normalizar, main._extraer_cantidades_desc,
-                                  con_tamano=not s_tamano), f)
+                                  con_bonus=con_bonus, con_castigo=con_castigo), f)
                 for f in cands
             ]
             puntuados = [(s, f) for s, f in puntuados if s >= UMBRAL_MATCH]
@@ -274,8 +290,13 @@ ESCENARIOS = [
     ("hoy",               dict(s_escala=False, s_filtro=False, s_tamano=False)),
     ("solo S-escala",     dict(s_escala=True,  s_filtro=False, s_tamano=False)),
     ("S-escala+S-filtro", dict(s_escala=True,  s_filtro=True,  s_tamano=False)),
+    # ✏️ 18/09 (Tarea 26 paso b, antes de implementar): la combinación que decidió Santiago el
+    # 18/09 y que ninguno de los cuatro escenarios medía. S-tamaño partido: se saca el ×0,7 y se
+    # CONSERVA el +0,20 hasta la Tarea 22.
+    ("(b) sin ×0,7",      dict(s_escala=True,  s_filtro=True,  s_tamano="×0,7")),
     ("los tres",          dict(s_escala=True,  s_filtro=True,  s_tamano=True)),
 ]
+REGLA_B = "(b) sin ×0,7"
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -285,14 +306,13 @@ ESCENARIOS = [
 def validar(filas, dia):
     errores = []
 
-    # (1) puntuar_variante(con_tamano=True) == puntuar(), sobre TODOS los candidatos.
+    # (1) puntuar_variante(con +0,20 y con ×0,7) == puntuar(), sobre TODOS los candidatos.
     n_cmp = 0
     for prod in CANASTA:
         for c in CADENAS:
             for f in U.candidatos(filas, c, prod["nombre"]):
                 n_cmp += 1
-                a = puntuar_variante(prod, f["of"], main.normalizar, main._extraer_cantidades_desc,
-                                     con_tamano=True)
+                a = puntuar_variante(prod, f["of"], main.normalizar, main._extraer_cantidades_desc)
                 b = U.score(prod, f["of"])
                 if a != b:
                     errores.append(f"(1) {c}/{prod['nombre']}: puntuar_variante={a} puntuar={b} "
@@ -350,7 +370,7 @@ def orden(fichas, campo):
 
 def resumen_por_cadena(ctxs):
     P.barra("§1 — RESUMEN POR CADENA Y ESCENARIO",
-            "hoy · solo S-escala · S-escala+S-filtro · los tres.")
+            "hoy · solo S-escala · S-escala+S-filtro · (b) sin ×0,7 · los tres.")
     campos = ("total_envase", "total_final", "delta_pct_sin_promo", "delta_pct_final",
               "n_con_promedio", "n_disponibles")
     nombres = [n for n, _ in ESCENARIOS]
@@ -399,10 +419,11 @@ def mediana_por_producto(ctxs):
         print(f"\n    Sin mediana en NINGÚN escenario: {sin_mediana_todas}")
 
 
-def movimientos_grandes(ctxs):
-    P.barra("§4 — FILAS CUYO SUBTOTAL SE MUEVE MÁS DE 2× RESPECTO DE HOY (en cualquier dirección)",
-            "Candidatas de la Tarea 22, no se tapan. factor = subtotal_escenario / subtotal_hoy.")
+def movidas_mas_de_2x(ctxs, destino):
+    """(nombre, cadena, factor, $hoy, $destino, primer escenario que ya la mueve) — hoy → `destino`."""
     fi_hoy = ctxs["hoy"]["fichas"]
+    hasta = [n for n, _ in ESCENARIOS[1:]]
+    hasta = hasta[:hasta.index(destino) + 1]
     movidas = []
     for c in CADENAS:
         for prod in CANASTA:
@@ -412,18 +433,35 @@ def movimientos_grandes(ctxs):
             if not sub_hoy:
                 continue
             primero = None
-            for n, _ in ESCENARIOS[1:]:
+            for n in hasta:
                 d = U.fila_ficha(ctxs[n]["fichas"][c], nombre)
                 sub = d["subtotal"] if d else 0.0
-                factor = sub / sub_hoy if sub_hoy else None
-                if factor is not None and (factor > 2 or factor < 0.5) and primero is None:
+                factor = sub / sub_hoy
+                if (factor > 2 or factor < 0.5) and primero is None:
                     primero = n
-                if n == "los tres" and factor is not None and (factor > 2 or factor < 0.5):
+                if n == destino and (factor > 2 or factor < 0.5):
                     movidas.append((nombre, c, factor, sub_hoy, sub, primero))
+    return movidas
+
+
+def movimientos_grandes(ctxs):
+    P.barra("§4 — FILAS CUYO SUBTOTAL SE MUEVE MÁS DE 2× RESPECTO DE HOY (en cualquier dirección)",
+            "Candidatas de la Tarea 22, no se tapan. factor = subtotal_escenario / subtotal_hoy.")
+    for destino in (REGLA_B, "los tres"):
+        movidas = movidas_mas_de_2x(ctxs, destino)
+        print(f"\n    hoy → {destino}: {len(movidas)} filas")
+        _imprimir_movidas(movidas)
+    a = {(x[0], x[1]) for x in movidas_mas_de_2x(ctxs, REGLA_B)}
+    b = {(x[0], x[1]) for x in movidas_mas_de_2x(ctxs, "los tres")}
+    print(f"\n    Solo en {REGLA_B}: {sorted(a - b) or 'ninguna'}")
+    print(f"    Solo en los tres: {sorted(b - a) or 'ninguna'}")
+
+
+def _imprimir_movidas(movidas):
     if not movidas:
-        print("    Ninguna fila se mueve más de 2× (hoy → los tres).")
+        print("    Ninguna fila se mueve más de 2×.")
     for nombre, c, factor, sub_hoy, sub, primero in sorted(movidas, key=lambda x: -abs(math.log(x[2]))):
-        print(f"    {nombre:<22} {c:<11} ×{factor:6.2f}   ${sub_hoy:>10,.2f} → ${sub:>10,.2f}   "
+        print(f"      {nombre:<22} {c:<11} ×{factor:6.2f}   ${sub_hoy:>10,.2f} → ${sub:>10,.2f}   "
               f"(primer escenario que ya lo mueve >2×: {primero})")
 
 
@@ -431,7 +469,7 @@ def sin_candidato_elegible(ctxs):
     P.barra("§5 — FILAS SIN CANDIDATO ELEGIBLE (S-filtro), POR CADENA",
             "Población del estado nuevo (decisión 6). El paso 1 estimó cero en esta captura: "
             "acá se confirma o se refuta con la selección real de S-filtro.")
-    for n in ("S-escala+S-filtro", "los tres"):
+    for n in ("S-escala+S-filtro", REGLA_B, "los tres"):
         cnt = Counter(c for c, _q in ctxs[n]["sin_elegible"])
         print(f"\n    {n}: {len(ctxs[n]['sin_elegible'])} filas — " + (dict(cnt) or "ninguna"))
         for c, q in sorted(ctxs[n]["sin_elegible"]):
@@ -443,7 +481,9 @@ def cambios_de_representante(ctxs):
             "hoy→solo S-escala nunca cambia representante (misma selección). Se listan las otras dos "
             "transiciones: qué reemplaza a qué, con precio y score.")
     transiciones = [("solo S-escala", "S-escala+S-filtro", "S-filtro"),
-                    ("S-escala+S-filtro", "los tres", "S-tamaño")]
+                    ("S-escala+S-filtro", REGLA_B, "sacar SOLO el ×0,7"),
+                    (REGLA_B, "los tres", "sacar además el +0,20"),
+                    ("S-escala+S-filtro", "los tres", "S-tamaño entero (+0,20 y ×0,7)")]
     for antes, despues, causa in transiciones:
         print(f"\n    {antes} → {despues}  (cambio atribuible a {causa}):")
         alguno = False
@@ -498,23 +538,79 @@ def atribucion(ctxs):
             nombre = prod["nombre"]
             d_hoy = U.fila_ficha(fi_hoy[c], nombre)
             sub_hoy = d_hoy["subtotal"] if d_hoy else 0.0
+            movida = False
+            for dest in (REGLA_B, "los tres"):
+                d_dest = U.fila_ficha(ctxs[dest]["fichas"][c], nombre)
+                sub_dest = d_dest["subtotal"] if d_dest else 0.0
+                movida |= bool(sub_hoy) and (sub_dest / sub_hoy > 2 or sub_dest / sub_hoy < 0.5)
+            if not movida:
+                continue
             d_tres = U.fila_ficha(ctxs["los tres"]["fichas"][c], nombre)
             sub_tres = d_tres["subtotal"] if d_tres else 0.0
-            if not sub_hoy or not (sub_tres / sub_hoy > 2 or sub_tres / sub_hoy < 0.5):
-                continue
             print(f"\n    [{nombre}] {c}: ${sub_hoy:,.2f} → ${sub_tres:,.2f}")
             anterior = sub_hoy
             for n, _ in ESCENARIOS[1:]:
                 d = U.fila_ficha(ctxs[n]["fichas"][c], nombre)
                 sub = d["subtotal"] if d else 0.0
                 causa = {"solo S-escala": "S-escala", "S-escala+S-filtro": "S-filtro",
-                         "los tres": "S-tamaño"}[n]
+                         REGLA_B: "×0,7", "los tres": "+0,20"}[n]
                 if sub != anterior:
                     print(f"      {causa:<10} ${anterior:,.2f} → ${sub:,.2f} "
                           f"(×{sub / anterior if anterior else float('inf'):.2f})")
                 else:
                     print(f"      {causa:<10} sin cambio (${sub:,.2f})")
                 anterior = sub
+
+
+YERBA_CHANGO = ("Chango Más", "Yerba mate", "Yerba Mate Buen Dia 1 Kg", 2799.0)
+
+
+def regla_b(ctxs, filas):
+    P.barra(f"§9 — {REGLA_B}: LA YERBA DE CHANGO MÁS Y QUÉ HACE EL ×0,7 SOLO",
+            "El +0,20 satura en 1,0: entre conmensurables empata los scores y decide el precio. "
+            "Si la yerba de Chango Más se mueve con el +0,20 puesto, el mecanismo está mal leído.")
+    c, q, titulo, precio = YERBA_CHANGO
+    f = ctxs[REGLA_B]["elegido"].get((c, q))
+    ok = bool(f) and f["of"].producto == titulo and float(f["of"].precio) == precio
+    real = f"{f['of'].producto!r} ${f['of'].precio:,.2f}" if f else "sin representante"
+    print(f"\n    {c}/{q} en {REGLA_B}: {real} — "
+          + ("OK, no se mueve" if ok else f"⚠ SE MOVIÓ (esperado {titulo!r} ${precio:,.2f})"))
+    prod = next(p for p in CANASTA if p["nombre"] == q)
+    print("    Candidatos con score ≥ umbral, con y sin el +0,20 (siempre sin el ×0,7):")
+    for g in U.candidatos(filas, c, q):
+        s_con = puntuar_variante(prod, g["of"], main.normalizar, main._extraer_cantidades_desc,
+                                 con_bonus=True, con_castigo=False)
+        s_sin = puntuar_variante(prod, g["of"], main.normalizar, main._extraer_cantidades_desc,
+                                 con_bonus=False, con_castigo=False)
+        if max(s_con, s_sin) >= UMBRAL_MATCH:
+            print(f"      {g['of'].producto!r:<48} ${g['of'].precio:>10,.2f}  con +0,20 {s_con:.3f} · "
+                  f"sin {s_sin:.3f}")
+
+    print(f"\n    El ×0,7 solo (S-escala+S-filtro → {REGLA_B}): representantes que cambian, con el score "
+          "de los dos candidatos con y sin el ×0,7:")
+    alguno = False
+    for prod in CANASTA:
+        nombre = prod["nombre"]
+        for c in CADENAS:
+            fa = ctxs["S-escala+S-filtro"]["elegido"].get((c, nombre))
+            fb = ctxs[REGLA_B]["elegido"].get((c, nombre))
+            if (fa and fa["of"].producto) == (fb and fb["of"].producto):
+                continue
+            alguno = True
+            print(f"      [{nombre}] {c}")
+            for rot, g in (("antes", fa), ("después", fb)):
+                if not g:
+                    print(f"        {rot:<8} —")
+                    continue
+                s1 = puntuar_variante(prod, g["of"], main.normalizar, main._extraer_cantidades_desc)
+                s2 = puntuar_variante(prod, g["of"], main.normalizar, main._extraer_cantidades_desc,
+                                      con_bonus=True, con_castigo=False)
+                pu = g["pu"]
+                cont = f"{pu['cantidad_base']:g} {pu['unidad_base']}" if pu else "sin métrica"
+                print(f"        {rot:<8} {g['of'].producto!r:<48} ${g['of'].precio:>10,.2f} ({cont})  "
+                      f"con ×0,7 {s1:.3f} · sin {s2:.3f}")
+    if not alguno:
+        print("      ninguno: el ×0,7 solo no cambia ningún representante en esta captura")
 
 
 def main_cli():
@@ -538,7 +634,7 @@ def main_cli():
     print(f"Captura: {cap['__fecha']} · {cap.get('__origen')} · día {dia} (0=lunes)")
     print(f"Canasta: CANASTA_DEFAULT, {len(CANASTA)} ítems")
     print("Instrumento validado:")
-    print(f"  (1) puntuar_variante(con_tamano=True) == puntuar en los {val['n_candidatos_comparados']} candidatos")
+    print(f"  (1) puntuar_variante(con +0,20 y con ×0,7) == puntuar en los {val['n_candidatos_comparados']} candidatos")
     print(f"  (2) seleccionar(sin nada) == producción en los {val['n_representantes']} representantes")
     print("  (3) OBLIGATORIA: con los tres apagados, ficha por ficha, IDÉNTICO a producción")
 
@@ -552,6 +648,7 @@ def main_cli():
     cambios_de_representante(ctxs)
     piso_brecha(ctxs)
     atribucion(ctxs)
+    regla_b(ctxs, filas)
 
 
 if __name__ == "__main__":
