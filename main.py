@@ -517,6 +517,14 @@ def _a_base(valor: float, unidad: str) -> tuple[float, str] | None:
     if u in _UNIDAD_A_GRAMOS:
         return (valor * _UNIDAD_A_GRAMOS[u], "peso")
     if u in _UNIDAD_A_ML:
+        if u in ("ml", "cc") and valor != int(valor):
+            # "Coca-Cola Sabor Liviano 1,75 Ml", "Gaseosa ... Suave 2.25cc" (Coto, Tarea 26 paso
+            # a2): el título escribe mal la unidad — ningún envase de gaseosa mide 1,75 ml. Leerlo
+            # como 1,75 L sería inventar un dato (CLAUDE.md, primera regla invariable); el número
+            # de hoy es 1000× menor y no lo es menos. ml/cc de fábrica son enteros: 4,8 g de
+            # protector labial o 10 ml de un sachet son reales, pero ni un solo ml/cc fraccionario
+            # aparece en ninguna captura o fixture salvo estos dos títulos. Hueco, no invención.
+            return None
         return (valor * _UNIDAD_A_ML[u], "volumen")
     if u in _UNIDAD_A_METROS:
         return (valor * _UNIDAD_A_METROS[u], "longitud")
@@ -634,6 +642,20 @@ def _contables(desc_norm: str) -> set[int]:
     return {n for n in ns if n > 1}
 
 
+# "Six Pack", "Sixpack", "Four Pack", "Eight Pack" (Vea, Tarea 26 paso a2): vocabulario contable en
+# inglés que faltaba. Sin él, "Gaseosa Sprite Six Pack 375 Ml" no se reconoce como ambiguo y la
+# métrica toma la botella suelta (375 ml) por el precio de las seis — 19 filas medidas en la
+# captura de la canasta del 14/09. Solo alimenta `_forma_ambigua`, nunca se multiplica (decisión
+# 5 de la Tarea 26: no se lee el número de pack del título para cobrar). "Twopack" y "Twelve Pack"
+# quedan afuera: no aparecen junto a una medida de peso/volumen en ningún dato visto.
+_RE_PACK_INGLES = re.compile(r"\b(four|six|eight)\s*pack\b", re.IGNORECASE)
+_PACK_INGLES_N = {"four": 4, "six": 6, "eight": 8}
+
+
+def _contables_ingles(desc_norm: str) -> set[int]:
+    return {_PACK_INGLES_N[m.group(1).lower()] for m in _RE_PACK_INGLES.finditer(desc_norm)}
+
+
 def _es_peso_o_volumen(unidad: str) -> bool:
     return (_a_base(1.0, unidad) or (0.0, ""))[1] in ("peso", "volumen")
 
@@ -681,7 +703,7 @@ def _forma_ambigua(desc_norm: str) -> bool:
     # Un contable falso acá deja un hueco, nunca un número equivocado: por eso solo se
     # descartan formas donde lo que queda es, en todos los casos vistos, la medida del
     # artículo (singular, porcentaje). "3x2" (promo) o "2x48 40 g" siguen siendo ambiguos.
-    contables = _contables(desc_norm) | _contables_de_envase(desc_norm)
+    contables = _contables(desc_norm) | _contables_de_envase(desc_norm) | _contables_ingles(desc_norm)
     if not contables:
         return False
     pelados = {int(m.group(1)) for m in _RE_NXM_PELADO.finditer(desc_norm)

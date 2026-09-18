@@ -501,19 +501,24 @@ def _sin_numero_equivocado():
     return {c: ((n["ref"] - n["mal"]) / n["ref"] * 100, n["ref"]) for c, n in cnt.items()}
 
 
-# Medido el 18/09 con el fix, captura de la canasta del 14/09 (fija: el número es exacto, no una
-# estimación). Antes del fix Chango Más daba 99,83 (596 de 597: el azúcar "1/2 Kg" leído como 2 kg).
-# Lo que no es 100 ya estaba y NO es de este bug (hallazgos, no se tocan acá): Vea 97,53 son 19
-# "Six Pack"/"Four Pack"/"Eight Pack" donde la métrica toma UNA botella; Coto 99,44 son dos gaseosas
-# cuyo título escribe mal la unidad ("Coca-Cola Sabor Liviano 1,75 Ml", "... Suave 2.25cc").
-PISO_SIN_NUMERO_EQUIVOCADO = {"Carrefour": 100.0, "Día": 100.0, "Vea": 97.53, "Chango Más": 100.0,
-                              "Coto": 99.44}
-# Medida: 2,47 (Vea 97,53 contra 100). ⚠️ Esta brecha NO detecta el bug de la fracción: Chango Más no
-# es el extremo, lo detecta el piso. Existe para que una regresión en otra cadena no se esconda.
+# Medido el 18/09 con el fix de la fracción (paso a), captura de la canasta del 14/09 (fija: el
+# número es exacto, no una estimación). Antes de ese fix Chango Más daba 99,83 (596 de 597: el
+# azúcar "1/2 Kg" leído como 2 kg). Lo que no era 100 ahí y NO era de ese bug (quedó reportado sin
+# tocar): Vea 97,53 (19 "Six Pack"/"Four Pack"/"Eight Pack"/"Sixpack" donde la métrica tomaba UNA
+# botella) y Coto 99,44/99,45 (dos gaseosas cuyo título escribe mal la unidad, "1,75 Ml" y "2.25cc").
+# ✏️ 18/09, paso (a2): las dos se arreglaron — ver sección (g). Vea sube a 99,87 (18 de 19 filas se
+# arreglan; la 19ª, "Pack 6" pelado, queda igual — PARÉ, sin decisión, ver (g)) y Coto a 100 (2/2).
+PISO_SIN_NUMERO_EQUIVOCADO = {"Carrefour": 100.0, "Día": 100.0, "Vea": 99.87, "Chango Más": 100.0,
+                              "Coto": 100.0}
+# Medida: 0,13 (Vea 99,87 contra el resto en 100). Antes de este paso era 2,47. ⚠️ Esta brecha no
+# detecta ninguno de los dos bugs de este paso —Vea y Coto no eran, juntas, el extremo en los dos
+# sentidos—, los detecta el piso de cada cadena. Existe para que una regresión en otra cadena no se
+# esconda.
 # ⚠️ Lección de la Tarea 20: si se pone en rojo, antes de tocar la constante mirá si alguna cadena
 # BAJÓ. Una brecha también sube cuando una sola cadena MEJORA —en la Tarea 20 pasó de 40,1 a 42,1 con
-# un arreglo correcto—, y el número agregado no distingue un caso del otro. El detalle por cadena, sí.
-BRECHA_SIN_NUMERO_EQUIVOCADO_MAX = 2.5
+# un arreglo correcto, y acá esta misma brecha bajó de 2,47 a 0,13 por la misma razón—, y el número
+# agregado no distingue un caso del otro. El detalle por cadena, sí.
+BRECHA_SIN_NUMERO_EQUIVOCADO_MAX = 0.2
 
 
 def test_ninguna_cadena_queda_abajo_de_su_piso_sin_numero_equivocado():
@@ -527,6 +532,108 @@ def test_la_brecha_sin_numero_equivocado_no_se_abre():
     brecha = max(m.values()) - min(m.values())
     assert brecha <= BRECHA_SIN_NUMERO_EQUIVOCADO_MAX, \
         f"brecha {brecha:.2f} > {BRECHA_SIN_NUMERO_EQUIVOCADO_MAX} — por cadena: { {c: round(p, 2) for c, p in m.items()} }"
+
+
+# ── (g) Vocabulario contable inglés y ml/cc mal escrito (Tarea 26, paso a2) ──────
+# Las encontró el paso (a) y las dejó reportadas sin tocar. Captura de la canasta del 14/09.
+#
+# Vea, "Six Pack"/"Four Pack"/"Eight Pack"/"Sixpack": es vocabulario contable que faltaba —nada
+# más—, y con eso la regla que YA EXISTE hace el resto: peso o volumen junto a un contable es
+# ambiguo y NO publica métrica (decisión del 13/09, la de `_forma_ambigua`). Antes del fix
+# "Gaseosa Sprite Six Pack 375 Ml" daba 375 ml (la botella suelta) por el precio de las seis; el
+# resultado correcto es HUECO, no 2.250 ml — no se multiplica.
+#
+# Coto, "1,75 Ml" / "2.25cc": el título está mal escrito. Leerlos como 1,75 L / 2,25 L sería
+# inventar un dato que la primera regla invariable de CLAUDE.md prohíbe. El resultado correcto
+# también es HUECO. Lo que había que resolver es que publicaban 1,75 ml / 2,25 ml: un número
+# equivocado por 1000×, no una fracción.
+#
+# Censo de las 22 filas reales de "pack" + peso/volumen que la captura de la canasta tiene en Vea y
+# Coto (`tests/medir_unidad_pedida.py`, §MEDIR PRIMERO del checkpoint). 21 caen en las dos decisiones
+# de arriba y quedan abajo, en rojo antes del fix con el número que daba al lado. De esas, el piso
+# "sin número equivocado" (arriba) solo mide 19: a 3 ("7 Up ... Four Pack") el lector de referencia
+# `leer_titulo` les lee el "7" de la marca como "número suelto" y las excluye de esa medición —ni
+# suman ni restan ahí—, pero en producción el fix las corrige igual: se prueban acá, no arriba.
+#
+# La 22ª —"Agua Mineral Con Gas Eco De Los Andes 1,5 L - Pack 6"— es una TERCERA forma que ninguna
+# de las dos decisiones cubre: el "6" va después de "Pack" sin una "x" y sin palabra de envase
+# detrás ("6 pack" o "pack x 6" ya se reconocían; "pack 6" pelado, no). Ninguna de las dos decisiones
+# de la Tarea 26 la nombra — PARÉ, queda sin tocar y documentada, no decidida acá.
+ANTES_DEL_FIX = {
+    ("Vea", "Cerveza Schneider Lata 710cc Four Pack"): ("volumen", 710.0),
+    ("Vea", "Cerveza Heineken Lata 710cc Four Pack"): ("volumen", 710.0),
+    ("Vea", "Agua Mineral Villavicencio S/g X 2 Lt. Six Pack."): ("volumen", 2000.0),
+    ("Vea", "Agua Mineral Kin C/g  X 1.5  Lt. Four Pack."): ("volumen", 1500.0),
+    ("Vea", "Agua Mineral Bell´s Con Gas Six Pack  Pet 1.5 Lt."): ("volumen", 1500.0),
+    ("Vea", "Agua Mineral Eco De Los Andes S/g X 2 Lt. Six Pack."): ("volumen", 2000.0),
+    ("Vea", "Agua Mineral Villa Del Sur S/g  X 1.5 Lt. Six Pack."): ("volumen", 1500.0),
+    ("Vea", "Gaseosa Sprite Six Pack 375 Ml"): ("volumen", 375.0),
+    ("Vea", "Gaseosa Fanta Six Pack 375 Ml"): ("volumen", 375.0),
+    ("Vea", "Eight Pack De Gaseosa Coca Cola X 2.25 Lt."): ("volumen", 2250.0),
+    ("Vea", "Gaseosa Pepsi Cola Six Pack  Lat 354 Cc."): ("volumen", 354.0),
+    ("Vea", "Gaseosa Quatro Pom  X 354 Cc. Six Pack."): ("volumen", 354.0),
+    ("Vea", "Gaseosa Coca Cola Vidrio Six Pack X 237 Cc"): ("volumen", 237.0),
+    ("Vea", "Gaseosa Coca Cola Sin Azúcares Pet 600cc Six Pack"): ("volumen", 600.0),
+    ("Vea", "Gaseosa Coca Cola Light Vidrio 237 Cc Six Pack"): ("volumen", 237.0),
+    ("Vea", "Gaseosa Coca Cola Sin Azúcares Lata 354cc Six Pack"): ("volumen", 354.0),
+    ("Vea", "Gaseosa Zero Sixpack De 237 Ml C/u Coca Cola"): ("volumen", 237.0),
+    ("Vea", "Gaseosa Manzana 375ml Sixpack Fanta"): ("volumen", 375.0),
+    ("Vea", "Gaseosa 7 Up Lima Limon 1.5 Lt Four Pack"): ("volumen", 1500.0),
+    ("Vea", "Gaseosa 7 Up Lima Limon Botella 2 Lt Four Pack"): ("volumen", 2000.0),
+    ("Vea", "Gaseosa 7 Up Light Lima Limon Botella 1.5 Lt Four Pack"): ("volumen", 1500.0),
+    ("Coto", "Coca-Cola Sabor Liviano 1,75 Ml"): ("volumen", 1.75),
+    ("Coto", "Gaseosa Sabor Cola CUNNINGTON Suave 2.25cc"): ("volumen", 2.25),
+}
+# La tercera forma ("pack N" pelado), sin decisión: se documenta con la métrica de HOY, que sigue
+# siendo la de antes. Si este test se cae, alguien decidió esa forma — no lo cambies sin decisión.
+PACK_PELADO_SIN_DECISION = {
+    ("Vea", "Agua Mineral Con Gas Eco De Los Andes 1,5 L - Pack 6"): ("volumen", 1500.0),
+}
+
+
+def _por_titulo_canasta(cadena, titulo):
+    filas = [f for (c, t, _p), f in _filas_canasta().items() if c == cadena and t == titulo]
+    assert filas, f"{cadena}: {titulo!r} no está en la captura de la canasta — la lista está mal escrita"
+    return filas
+
+
+def test_censo_de_la_captura_es_22_filas():
+    """Si la captura cambia, este test avisa antes que los de abajo."""
+    import re as _re
+    PACK_O_ML_RE = _re.compile(
+        r"\b(two|four|six|eight|twelve)\s*pack\b|\bsixpack\b|\bpack\s*[-x]?\s*\d+\b"
+        r"|\d[.,]\d+\s*(ml|cc)\b", _re.IGNORECASE)
+    en_vea_coto = {(c, t) for (c, t, _p) in _filas_canasta()
+                   if c in ("Vea", "Coto") and PACK_O_ML_RE.search(t)}
+    esperadas = set(ANTES_DEL_FIX) | set(PACK_PELADO_SIN_DECISION)
+    assert esperadas <= en_vea_coto, f"faltan en la captura: {esperadas - en_vea_coto}"
+
+
+def test_los_packs_en_ingles_y_el_ml_mal_escrito_quedan_sin_metrica():
+    """Las 19 de Vea + 2 de Coto: antes del fix daban el número de ANTES_DEL_FIX; ahora, hueco."""
+    fallos = []
+    for (c, t), antes in ANTES_DEL_FIX.items():
+        for f in _por_titulo_canasta(c, t):
+            pu = _metrica(f["of"])
+            if pu is not None:
+                fallos.append(f"{c}: {t!r} → {_txt(pu)} (antes {antes}, esperado sin métrica)")
+    assert not fallos, (f"{len(fallos)} de {len(ANTES_DEL_FIX)} siguen publicando un número:\n   "
+                        + "\n   ".join(fallos))
+
+
+def test_el_pack_pelado_sin_decision_no_se_tocó():
+    """
+    "Pack 6" sin "x" y sin palabra de envase detrás es una tercera forma que ninguna decisión de
+    la Tarea 26 cubre — PARÉ, no se resuelve acá. Este test documenta el estado actual (sigue mal),
+    no lo pide: si se cae, alguien decidió la forma y hay que actualizar el comentario y esta tabla.
+    """
+    fallos = []
+    for (c, t), (tipo, base) in PACK_PELADO_SIN_DECISION.items():
+        for f in _por_titulo_canasta(c, t):
+            pu = _metrica(f["of"])
+            if not (pu and pu["tipo"] == tipo and _cerca(pu["cantidad_base"], base)):
+                fallos.append(f"{c}: {t!r} → {_txt(pu)} (se esperaba sin cambios: {tipo} {base})")
+    assert not fallos, "cambió sin que nadie decidiera la forma 'pack N' pelada:\n   " + "\n   ".join(fallos)
 
 
 if __name__ == "__main__":
