@@ -82,6 +82,18 @@ class InstrumentoInvalido(Exception):
     pass
 
 
+# La columna "hoy" de la medición previa (18/09, antes de implementar), que la simulación de
+# "hoy" tiene que seguir dando aunque producción ya no sea "hoy".
+CAMPOS_HOY = ("total_envase", "total_final", "delta_pct_sin_promo", "delta_pct_final", "n_con_promedio")
+HOY_DOCUMENTADO = {
+    "Carrefour":  (143632.25, 107724.19, -7.6, -30.7, 17),
+    "Día":        (115272.00, 86454.00, 8.7, -18.5, 16),
+    "Vea":        (102676.00, 77007.00, -11.4, -33.6, 16),
+    "Chango Más": (165152.00, 123864.00, -3.1, -27.3, 16),
+    "Coto":       (124931.95, 93698.96, 33.8, 0.3, 14),
+}
+
+
 # ─────────────────────────────────────────────────────────────────
 #  S-TAMAÑO: puntuar sin el bonus/penalidad de tamaño
 # ─────────────────────────────────────────────────────────────────
@@ -290,13 +302,16 @@ ESCENARIOS = [
     ("hoy",               dict(s_escala=False, s_filtro=False, s_tamano=False)),
     ("solo S-escala",     dict(s_escala=True,  s_filtro=False, s_tamano=False)),
     ("S-escala+S-filtro", dict(s_escala=True,  s_filtro=True,  s_tamano=False)),
-    # ✏️ 18/09 (Tarea 26 paso b, antes de implementar): la combinación que decidió Santiago el
-    # 18/09 y que ninguno de los cuatro escenarios medía. S-tamaño partido: se saca el ×0,7 y se
-    # CONSERVA el +0,20 hasta la Tarea 22.
-    ("(b) sin ×0,7",      dict(s_escala=True,  s_filtro=True,  s_tamano="×0,7")),
+    # ✏️ 18/09 (Tarea 26 paso b, implementación): S-tamaño partido. La decisión del 18/09 era
+    # sacar solo el ×0,7 y conservar el +0,20; medido este escenario, el ×0,7 también se
+    # conserva (ver §9). Queda como la medición de la opción descartada.
+    ("sin ×0,7",          dict(s_escala=True,  s_filtro=True,  s_tamano="×0,7")),
     ("los tres",          dict(s_escala=True,  s_filtro=True,  s_tamano=True)),
 ]
-REGLA_B = "(b) sin ×0,7"
+# Lo que quedó en producción el 18/09 (sepa_backend, Tarea 26 paso b): S-escala + S-filtro,
+# `puntuar` sin tocar. `validar` exige que esta simulación dé lo mismo que el código real.
+IMPLEMENTADA = "S-escala+S-filtro"
+SIN_X07 = "sin ×0,7"
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -320,11 +335,19 @@ def validar(filas, dia):
     if errores:
         raise InstrumentoInvalido("\n  ".join(errores[:15]))
 
-    # (2) seleccionar(sin nada) reproduce exacto el precios de producción.
+    # (2) ✏️ 18/09, después de implementar: seleccionar(S-filtro) reproduce exacto el precios de
+    # producción, con los mismos `sin_elegible` y los mismos envases. Antes comparaba
+    # seleccionar(sin nada) contra la producción de antes de la regla.
     precios_prod = P.precios_de(filas, CANASTA, "hoy")
-    precios_sel, _elegido, sin_eleg = seleccionar(CANASTA, filas, s_filtro=False, s_tamano=False)
-    if sin_eleg:
-        errores.append(f"(2) con s_filtro=False no puede haber 'sin_elegible': {sin_eleg}")
+    precios_sel, elegido_sel, sin_eleg = seleccionar(CANASTA, filas, s_filtro=True, s_tamano=False)
+    sin_prod = {k for k, v in precios_prod.items() if v.get("sin_elegible")}
+    if sin_eleg != sin_prod:
+        errores.append(f"(2) sin_elegible: seleccionar {sorted(sin_eleg)} ≠ producción {sorted(sin_prod)}")
+    clas_sel = clasificar_todas(CANASTA, precios_sel, elegido_sel, sin_eleg)
+    for k, v in precios_prod.items():
+        esperado = None if clas_sel[k]["excluida"] else clas_sel[k]["envases"]
+        if v.get("envases") != esperado:
+            errores.append(f"(2) {k}: envases de producción {v.get('envases')} ≠ simulados {esperado}")
     claves = set(precios_prod) | set(precios_sel)
     for k in claves:
         a, b = precios_prod.get(k), precios_sel.get(k)
@@ -340,14 +363,26 @@ def validar(filas, dia):
     if errores:
         raise InstrumentoInvalido("\n  ".join(errores[:15]))
 
-    # (3) LA VALIDACIÓN OBLIGATORIA: con los tres apagados, ficha por ficha, IDÉNTICO a hoy.
-    _precios_h, _prom_h, fi_hoy_prod = P.fichas(filas, CANASTA, "hoy", False, dia)
-    ctx_hoy = correr_escenario(CANASTA, filas, dia, s_escala=False, s_filtro=False, s_tamano=False)
-    if ctx_hoy["fichas"] != fi_hoy_prod:
+    # (3) LA VALIDACIÓN OBLIGATORIA. ✏️ 18/09, después de implementar: la simulación del
+    # escenario IMPLEMENTADO da, ficha por ficha, lo mismo que el código real. Antes era "con los
+    # tres apagados == producción", que dejó de ser cierto por diseño.
+    _precios_h, _prom_h, fi_prod = P.fichas(filas, CANASTA, "hoy", False, dia)
+    ctx_impl = correr_escenario(CANASTA, filas, dia, **dict(ESCENARIOS)[IMPLEMENTADA])
+    if ctx_impl["fichas"] != fi_prod:
         for c in CADENAS:
-            if ctx_hoy["fichas"].get(c) != fi_hoy_prod.get(c):
-                errores.append(f"(3) {c}: la ficha con los tres apagados ≠ la ficha de producción")
+            if ctx_impl["fichas"].get(c) != fi_prod.get(c):
+                errores.append(f"(3) {c}: la ficha simulada de '{IMPLEMENTADA}' ≠ la del código real")
         raise InstrumentoInvalido("\n  ".join(errores) or "(3) las fichas difieren")
+
+    # (4) "hoy" sigue simulando el código de antes: da los números documentados en la medición
+    # previa (PROXIMAS-TAREAS.md, Tarea 26, "Paso (b) — medición previa", columna "hoy").
+    ctx_hoy = correr_escenario(CANASTA, filas, dia, s_escala=False, s_filtro=False, s_tamano=False)
+    for c, vals in HOY_DOCUMENTADO.items():
+        for campo, v in zip(CAMPOS_HOY, vals):
+            if ctx_hoy["fichas"][c][campo] != v:
+                errores.append(f"(4) hoy {c} {campo} = {ctx_hoy['fichas'][c][campo]}, documentado {v}")
+    if errores:
+        raise InstrumentoInvalido("\n  ".join(errores))
 
     return {"n_candidatos_comparados": n_cmp, "n_representantes": len(precios_prod)}
 
@@ -370,7 +405,7 @@ def orden(fichas, campo):
 
 def resumen_por_cadena(ctxs):
     P.barra("§1 — RESUMEN POR CADENA Y ESCENARIO",
-            "hoy · solo S-escala · S-escala+S-filtro · (b) sin ×0,7 · los tres.")
+            "hoy · solo S-escala · S-escala+S-filtro (IMPLEMENTADA) · sin ×0,7 · los tres.")
     campos = ("total_envase", "total_final", "delta_pct_sin_promo", "delta_pct_final",
               "n_con_promedio", "n_disponibles")
     nombres = [n for n, _ in ESCENARIOS]
@@ -447,13 +482,13 @@ def movidas_mas_de_2x(ctxs, destino):
 def movimientos_grandes(ctxs):
     P.barra("§4 — FILAS CUYO SUBTOTAL SE MUEVE MÁS DE 2× RESPECTO DE HOY (en cualquier dirección)",
             "Candidatas de la Tarea 22, no se tapan. factor = subtotal_escenario / subtotal_hoy.")
-    for destino in (REGLA_B, "los tres"):
+    for destino in (IMPLEMENTADA, SIN_X07, "los tres"):
         movidas = movidas_mas_de_2x(ctxs, destino)
         print(f"\n    hoy → {destino}: {len(movidas)} filas")
         _imprimir_movidas(movidas)
-    a = {(x[0], x[1]) for x in movidas_mas_de_2x(ctxs, REGLA_B)}
+    a = {(x[0], x[1]) for x in movidas_mas_de_2x(ctxs, SIN_X07)}
     b = {(x[0], x[1]) for x in movidas_mas_de_2x(ctxs, "los tres")}
-    print(f"\n    Solo en {REGLA_B}: {sorted(a - b) or 'ninguna'}")
+    print(f"\n    Solo en {SIN_X07}: {sorted(a - b) or 'ninguna'}")
     print(f"    Solo en los tres: {sorted(b - a) or 'ninguna'}")
 
 
@@ -469,7 +504,7 @@ def sin_candidato_elegible(ctxs):
     P.barra("§5 — FILAS SIN CANDIDATO ELEGIBLE (S-filtro), POR CADENA",
             "Población del estado nuevo (decisión 6). El paso 1 estimó cero en esta captura: "
             "acá se confirma o se refuta con la selección real de S-filtro.")
-    for n in ("S-escala+S-filtro", REGLA_B, "los tres"):
+    for n in ("S-escala+S-filtro", SIN_X07, "los tres"):
         cnt = Counter(c for c, _q in ctxs[n]["sin_elegible"])
         print(f"\n    {n}: {len(ctxs[n]['sin_elegible'])} filas — " + (dict(cnt) or "ninguna"))
         for c, q in sorted(ctxs[n]["sin_elegible"]):
@@ -481,8 +516,8 @@ def cambios_de_representante(ctxs):
             "hoy→solo S-escala nunca cambia representante (misma selección). Se listan las otras dos "
             "transiciones: qué reemplaza a qué, con precio y score.")
     transiciones = [("solo S-escala", "S-escala+S-filtro", "S-filtro"),
-                    ("S-escala+S-filtro", REGLA_B, "sacar SOLO el ×0,7"),
-                    (REGLA_B, "los tres", "sacar además el +0,20"),
+                    ("S-escala+S-filtro", SIN_X07, "sacar SOLO el ×0,7"),
+                    (SIN_X07, "los tres", "sacar además el +0,20"),
                     ("S-escala+S-filtro", "los tres", "S-tamaño entero (+0,20 y ×0,7)")]
     for antes, despues, causa in transiciones:
         print(f"\n    {antes} → {despues}  (cambio atribuible a {causa}):")
@@ -539,7 +574,7 @@ def atribucion(ctxs):
             d_hoy = U.fila_ficha(fi_hoy[c], nombre)
             sub_hoy = d_hoy["subtotal"] if d_hoy else 0.0
             movida = False
-            for dest in (REGLA_B, "los tres"):
+            for dest in (SIN_X07, "los tres"):
                 d_dest = U.fila_ficha(ctxs[dest]["fichas"][c], nombre)
                 sub_dest = d_dest["subtotal"] if d_dest else 0.0
                 movida |= bool(sub_hoy) and (sub_dest / sub_hoy > 2 or sub_dest / sub_hoy < 0.5)
@@ -553,7 +588,7 @@ def atribucion(ctxs):
                 d = U.fila_ficha(ctxs[n]["fichas"][c], nombre)
                 sub = d["subtotal"] if d else 0.0
                 causa = {"solo S-escala": "S-escala", "S-escala+S-filtro": "S-filtro",
-                         REGLA_B: "×0,7", "los tres": "+0,20"}[n]
+                         SIN_X07: "×0,7", "los tres": "+0,20"}[n]
                 if sub != anterior:
                     print(f"      {causa:<10} ${anterior:,.2f} → ${sub:,.2f} "
                           f"(×{sub / anterior if anterior else float('inf'):.2f})")
@@ -566,15 +601,16 @@ YERBA_CHANGO = ("Chango Más", "Yerba mate", "Yerba Mate Buen Dia 1 Kg", 2799.0)
 
 
 def regla_b(ctxs, filas):
-    P.barra(f"§9 — {REGLA_B}: LA YERBA DE CHANGO MÁS Y QUÉ HACE EL ×0,7 SOLO",
+    P.barra(f"§9 — {SIN_X07}: LA YERBA DE CHANGO MÁS Y QUÉ HACE EL ×0,7 SOLO",
             "El +0,20 satura en 1,0: entre conmensurables empata los scores y decide el precio. "
             "Si la yerba de Chango Más se mueve con el +0,20 puesto, el mecanismo está mal leído.")
     c, q, titulo, precio = YERBA_CHANGO
-    f = ctxs[REGLA_B]["elegido"].get((c, q))
-    ok = bool(f) and f["of"].producto == titulo and float(f["of"].precio) == precio
-    real = f"{f['of'].producto!r} ${f['of'].precio:,.2f}" if f else "sin representante"
-    print(f"\n    {c}/{q} en {REGLA_B}: {real} — "
-          + ("OK, no se mueve" if ok else f"⚠ SE MOVIÓ (esperado {titulo!r} ${precio:,.2f})"))
+    for n in (IMPLEMENTADA, SIN_X07):
+        f = ctxs[n]["elegido"].get((c, q))
+        ok = bool(f) and f["of"].producto == titulo and float(f["of"].precio) == precio
+        real = f"{f['of'].producto!r} ${f['of'].precio:,.2f}" if f else "sin representante"
+        print(f"\n    {c}/{q} en {n}: {real} — "
+              + ("OK, no se mueve" if ok else f"⚠ SE MOVIÓ (esperado {titulo!r} ${precio:,.2f})"))
     prod = next(p for p in CANASTA if p["nombre"] == q)
     print("    Candidatos con score ≥ umbral, con y sin el +0,20 (siempre sin el ×0,7):")
     for g in U.candidatos(filas, c, q):
@@ -586,14 +622,14 @@ def regla_b(ctxs, filas):
             print(f"      {g['of'].producto!r:<48} ${g['of'].precio:>10,.2f}  con +0,20 {s_con:.3f} · "
                   f"sin {s_sin:.3f}")
 
-    print(f"\n    El ×0,7 solo (S-escala+S-filtro → {REGLA_B}): representantes que cambian, con el score "
+    print(f"\n    El ×0,7 solo (S-escala+S-filtro → {SIN_X07}): representantes que cambian, con el score "
           "de los dos candidatos con y sin el ×0,7:")
     alguno = False
     for prod in CANASTA:
         nombre = prod["nombre"]
         for c in CADENAS:
             fa = ctxs["S-escala+S-filtro"]["elegido"].get((c, nombre))
-            fb = ctxs[REGLA_B]["elegido"].get((c, nombre))
+            fb = ctxs[SIN_X07]["elegido"].get((c, nombre))
             if (fa and fa["of"].producto) == (fb and fb["of"].producto):
                 continue
             alguno = True
@@ -635,8 +671,10 @@ def main_cli():
     print(f"Canasta: CANASTA_DEFAULT, {len(CANASTA)} ítems")
     print("Instrumento validado:")
     print(f"  (1) puntuar_variante(con +0,20 y con ×0,7) == puntuar en los {val['n_candidatos_comparados']} candidatos")
-    print(f"  (2) seleccionar(sin nada) == producción en los {val['n_representantes']} representantes")
-    print("  (3) OBLIGATORIA: con los tres apagados, ficha por ficha, IDÉNTICO a producción")
+    print(f"  (2) seleccionar(S-filtro) == producción en los {val['n_representantes']} representantes")
+    print(f"  (2) con S-filtro, mismos sin_elegible y mismos envases que producción")
+    print(f"  (3) OBLIGATORIA: '{IMPLEMENTADA}' simulado == código real, ficha por ficha")
+    print("  (4) 'hoy' simulado == la columna 'hoy' documentada antes de implementar")
 
     ctxs = {n: correr_escenario(CANASTA, filas, dia, **kw) for n, kw in ESCENARIOS}
 

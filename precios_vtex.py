@@ -6,6 +6,10 @@ Traduce la respuesta de `fuentes.py` a la MISMA estructura que devuelve
 
     { (cadena, nombre_canasta): {"precio_min": float, "precio_por_100u": dict|None} }
 
+✏️ Tarea 26 (18/09): la ruta online suma `envases` (cuántas veces se cobra
+`precio_min`) y `sin_elegible`. Son opcionales: una entrada sin `envases` —la ruta
+SEPA, un precio manual— se cobra `precio_min × cantidad`, como siempre.
+
 Esa igualdad de forma es deliberada: `_analizar()` y `_canasta_optima()` quedan
 sin tocar. El optimizador es el ítem 1.1 del roadmap, donde ya hay una sospecha
 de bug; mezclar fuente nueva con cambios ahí haría imposible saber qué rompió qué.
@@ -18,6 +22,7 @@ matching con stubs simples.
 from __future__ import annotations
 
 import logging
+import math
 import re
 from typing import Callable, Optional
 
@@ -92,6 +97,27 @@ def puntuar(item: dict, oferta: Oferta,
             if iguales:
                 val, _ = iguales[0]
                 ratio = min(val, val_obj) / max(val, val_obj)
+                # ✏️ Tarea 26 (18/09): con el subtotal por envases enteros el tamaño ya no
+                # tiene que parecerse a lo pedido, y la decisión 4 era sacar esta señal. Se
+                # CONSERVAN las dos ramas hasta la Tarea 22, a propósito y medido
+                # (tests/medir_regla_26b.py, captura de la canasta del 14/09):
+                #
+                # El +0,20 satura en 1,0, así que entre candidatos conmensurables EMPATA los
+                # scores y le pasa la decisión al desempate por precio. Yerba mate, 1 kg,
+                # Chango Más: "Yerba Mate Buen Dia 1 Kg" $2.799 (base 0,800) y "Yerba Mate
+                # Mañanita 1 Kg" $5.859 (base 0,867) quedan los dos en 1,000 y gana el más
+                # barato. Sin el bonus gana 0,867 y el mismo kilo cuesta $3.060 más (×2,09).
+                # Sacarlo cambiaba 6 representantes, ninguno por un producto mejor.
+                #
+                # El ×0,7 castiga por igual a todos los candidatos cuando todos quedan lejos
+                # (los fideos de 500 g para 2 kg en las 5 cadenas), y ahí no elige nada. Donde
+                # elige, sacarlo crea empates que el desempate resuelve por precio del ENVASE:
+                # aceite girasol, 2 L, Día, "Dia 1,5 Lt." $4.600 (0,867) contra "Natural 0,9
+                # Lt." $4.369 (0,607 → 0,867): gana el envase barato y cubrir 2 L cuesta
+                # 3 × $4.369 = $13.107 en vez de 2 × $4.600 = $9.200.
+                #
+                # Los dos los fija test_envases.py. Sacarlos es decisión de la Tarea 22, junto
+                # con un desempate que compare lo que se paga por lo pedido.
                 if ratio >= 1 - TOLERANCIA_CANTIDAD:
                     score = min(1.0, score + 0.20)
                 elif ratio < 0.5:
@@ -211,6 +237,85 @@ def _precio_por_100u(oferta: Oferta, extraer_cantidades: Optional[Callable[[str]
     return None
 
 
+# ─────────────────────────────────────────────────────────────────
+#  Tarea 26 — la unidad que pedís contra la unidad que cotiza el precio
+# ─────────────────────────────────────────────────────────────────
+#
+# Hasta el 18/09 el subtotal era `precio_min × cantidad` sin mirar qué compra un
+# `precio_min`: "Fideos, 2 kg" con un paquete de 500 g cobraba 2 paquetes (1 kg), y
+# "Gaseosa cola, 3 litro" con una botella de 3 L cobraba 3 botellas (9 L). Ahora la
+# fila cobra los ENVASES ENTEROS que cubren lo pedido, y solo puede representar al
+# ítem un candidato que pueda contestar esa pregunta. Decisiones 1, 3 y 6 de la Tarea
+# 26 (claude/PROXIMAS-TAREAS.md); medido antes en tests/medir_regla_26b.py.
+
+def _pide_contenido(item: dict) -> bool:
+    """El pedido declara contenido (kg, litro, gramos, ml). "unidad" y "pack" no."""
+    return (item.get("unidad") or "").strip().lower() not in _UNIDADES_SIN_CONTENIDO
+
+
+def _pedido(item: dict, extraer_cantidades: Callable[[str], list]):
+    """
+    (contenido total pedido en la unidad base, tipo) — "2 kg" → (2000.0, "peso").
+    None si el pedido no declara contenido o la unidad no se puede leer: ahí no se
+    cae al nombre del ítem como hace `_cantidad_objetivo`, porque esto fija el precio.
+    """
+    if not _pide_contenido(item) or not item.get("cantidad"):
+        return None
+    for val, tipo in (extraer_cantidades(f"{item['cantidad']} {item['unidad']}") or []):
+        return (val, tipo)
+    return None
+
+
+def _cotiza_um(oferta: Oferta) -> bool:
+    """`precio` es el de UNA unidad de medida (el kilo de un pesable). Misma precedencia que `_precio_por_100u`."""
+    unidad = (oferta.unidad_medida or "").strip().lower()
+    return bool(oferta.contenido and unidad and unidad not in _UNIDAD_SIN_CONTENIDO)
+
+
+def _click(oferta: Oferta) -> float:
+    """Cuántas unidades cobra un `precio` de artículo: 1, salvo "un" con multiplicador."""
+    return float(oferta.contenido) if oferta.contenido else 1.0
+
+
+def elegible(item: dict, oferta: Oferta, pu: Optional[dict],
+             extraer_cantidades: Callable[[str], list]) -> bool:
+    """
+    ¿Este candidato puede contestar lo que pide `item`? (decisión 3: filtro, no puntaje)
+      "unidad"/"pack": solo un ARTÍCULO dice cuántos — el precio del kilo no tiene con qué.
+      kg/litro: hace falta métrica del MISMO tipo que lo pedido (peso con peso); el
+      tamaño puede ser cualquiera, lo resuelve `envases_a_comprar`.
+    """
+    if not _pide_contenido(item):
+        return not _cotiza_um(oferta)
+    pedido = _pedido(item, extraer_cantidades)
+    return bool(pu) and pedido is not None and pu.get("tipo") == pedido[1]
+
+
+def envases_a_comprar(item: dict, oferta: Oferta, pu: Optional[dict],
+                      extraer_cantidades: Callable[[str], list]) -> Optional[float]:
+    """
+    Cuántas veces se cobra `oferta.precio` para cubrir lo pedido (decisión 1):
+      kg/litro + precio por unidad de medida → exacto: pedido ÷ lo que cubre el precio
+          ("2 kg" contra el kilo = 2; "500 gramos" contra el kilo = 0,5).
+      kg/litro + artículo con métrica del mismo tipo → envases enteros, sin tolerancia
+          hacia abajo: ceil(pedido ÷ contenido del envase). 2 kg de 500 g = 4.
+      "unidad"/"pack" + artículo → ceil(cantidad ÷ click). "2 unidad" de un click de 6 = 1.
+      Cualquier otro caso → None: la fila no se puede escalar y no se inventa.
+    Un candidato elegible siempre da un número; uno no elegible, siempre None.
+    """
+    if not _pide_contenido(item):
+        if _cotiza_um(oferta):
+            return None
+        return float(math.ceil(float(item.get("cantidad") or 0) / _click(oferta) - 1e-9))
+    pedido = _pedido(item, extraer_cantidades)
+    if not pedido or not pu or pu.get("tipo") != pedido[1] or not pu.get("cantidad_base"):
+        return None
+    veces = pedido[0] / pu["cantidad_base"]
+    if _cotiza_um(oferta):
+        return round(veces, 6)
+    return float(math.ceil(veces - 1e-9))
+
+
 def buscar_precios_online(
     canasta: list[dict],
     cadenas: list[str],
@@ -251,18 +356,25 @@ def buscar_precios_online(
             if c not in consultadas:
                 consultadas.append(c)
 
-        # Mejor match por cadena
-        mejor: dict[str, tuple[float, Oferta]] = {}
+        # Mejor match por cadena. Clave (elegible, score, −precio): un candidato que no
+        # puede contestar lo pedido pierde contra cualquiera que sí (Tarea 26, decisión 3);
+        # entre elegibles, a igual score gana el más barato y a distinto score, el mejor
+        # match — el desempate de siempre. Si NINGUNO es elegible queda el de siempre,
+        # marcado `sin_elegible`. Sin `extraer_cantidades` no hay métrica: todos cuentan
+        # como elegibles y la regla no se aplica.
+        mejor: dict[str, tuple[tuple, float, Oferta, Optional[dict]]] = {}
         for of in r.ofertas:
             if not of.disponible or of.precio <= 0:
                 continue
             s = puntuar(item, of, normalizar, extraer_cantidades)
             if s < umbral:
                 continue
-            # A igual score gana el más barato; a distinto score gana el mejor match.
+            pu = _precio_por_100u(of, extraer_cantidades, normalizar)
+            ok = elegible(item, of, pu, extraer_cantidades) if extraer_cantidades else True
+            clave = (ok, s, -of.precio)
             actual = mejor.get(of.cadena)
-            if actual is None or (s, -of.precio) > (actual[0], -actual[1].precio):
-                mejor[of.cadena] = (s, of)
+            if actual is None or clave > actual[0]:
+                mejor[of.cadena] = (clave, s, of, pu)
 
         if not mejor:
             sin_match.append(nombre)
@@ -270,12 +382,12 @@ def buscar_precios_online(
 
         detalle[nombre] = {
             "cadenas_con_precio": sorted(mejor),
-            "mejor_score": max(s for s, _ in mejor.values()),
+            "mejor_score": max(s for _, s, _, _ in mejor.values()),
         }
-        for cadena, (score, of) in mejor.items():
-            precios[(cadena, nombre)] = {
+        for cadena, (_clave, score, of, pu) in mejor.items():
+            entry = {
                 "precio_min": float(of.precio),
-                "precio_por_100u": _precio_por_100u(of, extraer_cantidades, normalizar),
+                "precio_por_100u": pu,
                 # Extras que el SEPA no puede dar. `_analizar` los ignora.
                 "precio_lista": of.precio_lista,
                 "descuento_pct": of.descuento_pct,
@@ -284,6 +396,14 @@ def buscar_precios_online(
                 "match_score": score,
                 "origen": of.origen,
             }
+            if extraer_cantidades:
+                # Tarea 26: cuántas veces se cobra `precio_min` (la `cantidad` pedida no se
+                # pisa). None = la fila no se puede escalar, que con el filtro de arriba es
+                # "ningún candidato elegible": no entra al total ni al %, pero su
+                # `precio_por_100u` sigue votando en la mediana (decisión 6).
+                entry["envases"] = envases_a_comprar(item, of, pu, extraer_cantidades)
+                entry["sin_elegible"] = entry["envases"] is None
+            precios[(cadena, nombre)] = entry
 
     n_ok = len(consultadas) - len(fallidas)
     meta = {

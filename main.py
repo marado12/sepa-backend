@@ -1816,6 +1816,28 @@ def _buscar_precios(df_suc, prod_path, canasta, lat=None, lon=None, radio_km=5.0
     return precios
 
 
+def _envases(prod: dict, entry: dict) -> float:
+    """
+    Cuántas veces se cobra `precio_min` en la fila (Tarea 26). La `cantidad` pedida no se
+    pisa: es lo que se muestra; esto es lo que multiplica al precio. La ruta online lo
+    calcula (`precios_vtex.envases_a_comprar`); una entrada que no lo trae —la ruta SEPA,
+    un precio manual— se cobra `cantidad` veces, como siempre.
+    """
+    return entry["envases"] if "envases" in entry else prod["cantidad"]
+
+
+def _en_el_total(entry: dict | None) -> dict | None:
+    """
+    La entrada, o None si la fila no entra al total ni al %: no hay precio, o ningún
+    candidato de la cadena puede contestar lo pedido (`sin_elegible`, decisión 6 de la
+    Tarea 26). Una fila `sin_elegible` sigue en `precios`, así que su `precio_por_100u`
+    sigue votando en `_promedios_por_producto`.
+    """
+    if entry is None or entry.get("sin_elegible"):
+        return None
+    return entry
+
+
 def _analizar(canasta, precios, promos, dia, promos_sitio_por_cadena=None):
     """
     Calcula totales y mejor promo por cadena.
@@ -1845,15 +1867,17 @@ def _analizar(canasta, precios, promos, dia, promos_sitio_por_cadena=None):
         total, n = 0.0, 0
         detalle = []
         for prod in canasta:
-            entry = precios.get((cadena, prod["nombre"]))
+            entry = _en_el_total(precios.get((cadena, prod["nombre"])))
             if entry:
                 p = entry["precio_min"]
                 p100 = entry.get("precio_por_100u")
-                sub = p * prod["cantidad"]
+                envases = _envases(prod, entry)
+                sub = p * envases
                 total += sub; n += 1
                 detalle.append({"producto": prod["nombre"], "precio_unit": p,
                                  "precio_por_100u": p100,
-                                 "cantidad": prod["cantidad"], "subtotal": sub, "ok": True})
+                                 "cantidad": prod["cantidad"], "envases": envases,
+                                 "subtotal": sub, "ok": True})
             else:
                 detalle.append({"producto": prod["nombre"], "precio_unit": None,
                                  "precio_por_100u": None,
@@ -1964,8 +1988,11 @@ def _sin_ninguna_cadena(canasta: list, precios: dict) -> list[str]:
 
     Salen del divisor de cobertura: si tahini no lo tiene nadie, no es mérito ni
     demérito de ninguna cadena. Van a un aviso aparte.
+
+    ✏️ Tarea 26: "tener" es tener un representante que entra al total. Una entrada
+    `sin_elegible` no cuenta: su fila se muestra como faltante.
     """
-    con_precio = {prod for _, prod in precios}
+    con_precio = {prod for (_, prod), entry in precios.items() if _en_el_total(entry)}
     return [p["nombre"] for p in canasta if p["nombre"] not in con_precio]
 
 
@@ -2053,8 +2080,9 @@ def _fichas(canasta: list, precios: dict, resultado: dict, promedios: dict,
     `delta_pct` fila por fila, que es el nivel donde la comparación es válida.
     """
     tiene: dict[str, list[str]] = {}
-    for (cadena, producto) in precios:
-        tiene.setdefault(producto, []).append(cadena)
+    for (cadena, producto), entry in precios.items():
+        if _en_el_total(entry):
+            tiene.setdefault(producto, []).append(cadena)
 
     nadie = set(_sin_ninguna_cadena(canasta, precios))
     comparables = [p for p in canasta if p["nombre"] not in nadie]
@@ -2068,28 +2096,43 @@ def _fichas(canasta: list, precios: dict, resultado: dict, promedios: dict,
 
         for prod in comparables:
             nombre = prod["nombre"]
-            entry = precios.get((cadena, nombre))
+            crudo = precios.get((cadena, nombre))
+            entry = _en_el_total(crudo)
             promedio = promedios.get(nombre)
             estado = _estado_fila(entry, promedio)
+            envases = _envases(prod, entry) if entry else None
 
             fila = {
                 "producto": nombre,
                 "estado": estado,
+                # Lo pedido, para mostrar. Lo que se cobra son `envases` (Tarea 26).
                 "cantidad": prod["cantidad"],
+                "envases": envases,
                 "precio_unit": entry["precio_min"] if entry else None,
-                "subtotal": (entry["precio_min"] * prod["cantidad"]) if entry else 0,
+                "subtotal": (entry["precio_min"] * envases) if entry else 0,
                 "ok": entry is not None,
                 "precio_por_100u": entry.get("precio_por_100u") if entry else None,
                 "promedio": promedio,
                 "delta_pct": None,
             }
+            if crudo is not None and entry is None:
+                # Ningún candidato de la cadena contesta lo pedido (decisión 6 de la Tarea
+                # 26). Se muestra como faltante y queda fuera del total y del %; el
+                # representante de siempre viaja aparte y sigue votando en la mediana.
+                # El estado propio y su texto son el paso (d).
+                fila["sin_elegible"] = True
+                fila["descartado"] = {"precio_unit": crudo["precio_min"],
+                                      "precio_por_100u": crudo.get("precio_por_100u")}
             if estado == "faltante":
                 faltantes.append(nombre)
                 # Saber quién sí lo tiene es accionable; un guion no.
                 fila["tambien_en"] = sorted(tiene.get(nombre, []))
             elif estado == "ok":
                 pu = entry["precio_por_100u"]
-                esp = promedio["precio_base"] * pu["cantidad_base"] * prod["cantidad"]
+                # `esp` y `subtotal` multiplican por los mismos `envases` y los dos llevan el
+                # contenido del envase: el Δ% de la fila es el cociente de precios por
+                # unidad y no depende de cuántos envases haga falta comprar.
+                esp = promedio["precio_base"] * pu["cantidad_base"] * envases
                 if esp > 0:
                     fila["delta_pct"] = round(fila["subtotal"] / esp * 100 - 100, 1)
                     pagado += fila["subtotal"]

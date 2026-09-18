@@ -210,9 +210,12 @@ def test_promo_del_sitio_le_gana_a_la_hardcodeada():
     assert fila["origen_promo"] == "sitio"
     assert fila["mejor_promo"] == "10% Banco Galicia"
     assert fila["banco_promo"] == "Banco Galicia"
-    # subtotal = 10000 * cantidad 1.5 = 15000 -> 10% = 1500.
-    # Con la promo manual (BNA 30% miércoles) habrían sido 4500.
-    assert fila["reintegro"] == 1500.0
+    # subtotal = 1 botella de 1.5 L a 10000 -> 10% = 1000.
+    # Con la promo manual (BNA 30% miércoles) habrían sido 3000.
+    # ✏️ Tarea 26 (18/09): decía "10000 * cantidad 1.5 = 15000 -> 1500". Cobraba una
+    # botella y media para 1,5 L pedido con botellas de 1,5 L; ahora se cobran los
+    # envases enteros que cubren lo pedido. La precedencia de promos no cambió.
+    assert fila["reintegro"] == 1000.0
 
 
 def test_cadena_sin_promo_del_sitio_usa_la_manual():

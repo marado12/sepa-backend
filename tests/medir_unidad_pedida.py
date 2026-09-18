@@ -44,17 +44,35 @@ CANASTA = main.CANASTA_DEFAULT
 TOL = M.TOL                     # factor "= 1" si difiere menos de 2%
 
 # PROXIMAS-TAREAS.md, Tarea 25, "Efecto en la canasta por defecto", columna "después".
+# ✏️ 18/09: desde la Tarea 26 paso (b) son los números del código con la regla de envases (Tarea 26,
+# "Paso (b) — implementado"); la columna de la Tarea 25 queda en PROXIMAS-TAREAS.md como historia.
+# §1–§4 siguen clasificando con la regla vieja (el texto "cobra" y los escenarios S1/S2 suponen
+# precio × cantidad): reinterpretarlos sobre el código nuevo es el paso (c).
 ESPERADO_T25 = {
     "2026-09-14T00:26:24": {
         #              total_envase total_final Δ% sin promo Δ% final n_con_promedio
-        "Carrefour":  (143632.25, 107724.19, -7.6, -30.7, 17),
-        "Día":        (115272.00, 86454.00, 8.7, -18.5, 16),
-        "Vea":        (102676.00, 77007.00, -11.4, -33.6, 16),
+        # ✏️ Tarea 26 paso (b), 18/09 — las cinco filas. La fila cobra los envases enteros que cubren
+        # lo pedido (S-escala) y el representante tiene que poder contestar lo pedido (S-filtro). Antes
+        # de actualizarlas el instrumento salía con exit 1 en 21 campos: los 4 de plata y % en las 5
+        # cadenas, y `n_con_promedio` de Coto. Ninguno es un cambio de la Tarea 25.
+        # ✏️ Carrefour: era (143632.25, 107724.19, -7.6, -30.7, 17). Fideos 2 → 4 paquetes de 500 g,
+        # gaseosa 3 → 1 botella de 3 L, carne picada 1 → 2 de 500 g, tomate "x kg" → lata de 400 g.
+        "Carrefour":  (131282.25, 98461.69, -11.4, -33.6, 17),
+        # ✏️ Día: era (115272.00, 86454.00, 8.7, -18.5, 16). Mismas filas que Carrefour.
+        "Día":        (110345.00, 82758.75, 14.7, -14.0, 16),
+        # ✏️ Vea: era (102676.00, 77007.00, -11.4, -33.6, 16). Fideos ×4, gaseosa 2,25 L ×2, carne
+        # picada ×2, tomate "x kg" → lata.
+        "Vea":        (93343.00, 70007.25, -17.1, -37.8, 16),
         # ✏️ Tarea 26 paso (a), 18/09: era (165942.60, 124456.95, -4.5, -28.4, 16). El fix de "1/2 Kg"
         # (leído como 2 kg) cambia el representante del azúcar: "Azúcar Rubio Azucel Orgánica 1/2 Kg"
         # $1.644,30 → "Azúcar Azucel 1kg" $1.249. No es un cambio de la Tarea 25.
-        "Chango Más": (165152.00, 123864.00, -3.1, -27.3, 16),
-        "Coto":       (124931.95, 93698.96, 33.8, 0.3, 14),
+        # ✏️ Tarea 26 paso (b): era (165152.00, 123864.00, -3.1, -27.3, 16). Fideos ×4, gaseosa 3 L ×1,
+        # manteca (click de 6) 2 → 1 click, tomate "500 G" → lata de 400 g.
+        "Chango Más": (151398.00, 113548.50, 2.1, -23.4, 16),
+        # ✏️ Coto: era (124931.95, 93698.96, 33.8, 0.3, 14). Fideos ×4. Azúcar: 2 → 6 frascos de mermelada de
+        # 390 g (producto equivocado, Tarea 22 — la regla lo agranda y queda visible). Gaseosa
+        # "Cunnington 500cmq", sin métrica, → "Manaos 2.25l" ×2: entra al %, y `n_con_promedio` 14 → 15.
+        "Coto":       (144152.95, 108114.71, 50.4, 12.8, 15),
     },
 }
 CAMPOS_T25 = ("total_envase", "total_final", "delta_pct_sin_promo", "delta_pct_final", "n_con_promedio")
@@ -230,7 +248,8 @@ def validar(cap, filas, dia):
             for campo, v in zip(CAMPOS_T25, vals):
                 if fi_hoy[c][campo] != v:
                     errores.append(f"(2) {c} {campo} = {fi_hoy[c][campo]}, la Tarea 25 documenta {v}")
-        estado_t25 = "OK: reproduce exacto la columna 'después' de la Tarea 25 (5 campos × 5 cadenas)"
+        estado_t25 = ("OK: reproduce exacto ESPERADO_T25 (5 campos × 5 cadenas; ✏️ desde el 18/09, los "
+                      "números de la Tarea 26 paso b)")
     else:
         estado_t25 = f"NO APLICA: no hay números de referencia para la captura {cap.get('__fecha')}"
 
@@ -274,14 +293,17 @@ def validar(cap, filas, dia):
             clases[(c, p["nombre"])] = clasificar(p, f) if f else {"cajon": "faltante", "factor": None,
                                                                    "marca": "", "cobra": ""}
 
-    # 5. Cada subtotal es precio_unit × cantidad, y la suma de las filas es total_envase.
+    # 5. Cada subtotal es precio_unit × envases, y la suma de las filas es total_envase.
+    # ✏️ Tarea 26 paso (b), 18/09: era "precio_unit × cantidad". Desde (b) la fila cobra `envases`
+    # (los envases enteros que cubren lo pedido) y `cantidad` queda como lo pedido. Antes de
+    # cambiarlo salía con exit 1 en las 15 filas donde envases ≠ cantidad.
     for c in CADENAS:
         fi = fi_hoy[c]
         suma = 0.0
         for d in fi["detalle"]:
             if d["precio_unit"] is not None:
-                if d["subtotal"] != d["precio_unit"] * d["cantidad"]:
-                    errores.append(f"(5) {c}/{d['producto']}: subtotal {d['subtotal']} ≠ precio × cantidad")
+                if d["subtotal"] != d["precio_unit"] * d["envases"]:
+                    errores.append(f"(5) {c}/{d['producto']}: subtotal {d['subtotal']} ≠ precio × envases")
                 suma += d["subtotal"]
         if abs(suma - fi["total_envase"]) > 0.005:
             errores.append(f"(5) {c}: Σ subtotales = {suma:.2f}, total_envase = {fi['total_envase']}")
@@ -337,7 +359,7 @@ def informe_filas(ctx):
             fac = "—" if k["factor"] is None else f"{k['factor']:.3g}"
             delta = "" if d["delta_pct"] is None else f"{d['delta_pct']:+.1f}%"
             print(f"      {c:<11} {k['cajon'] + k['marca']:<13} factor {fac:<6} {txt_cotiza(f['of']):<15} "
-                  f"${f['of'].precio:>10,.2f} × {p['cantidad']:g} = ${d['subtotal']:>10,.2f}  cobra {k['cobra']:<32} "
+                  f"${f['of'].precio:>10,.2f} × {d['envases']:g} = ${d['subtotal']:>10,.2f}  cobra {k['cobra']:<32} "
                   f"· {f['clase']:<16} · {d['estado']} {delta}")
             print(f"      {'':11} {f['of'].producto[:80]}")
 
@@ -460,11 +482,11 @@ def nombradas(ctx):
         ok = (f["of"].precio == MANTECA_CHANGO["precio"] and d["subtotal"] == MANTECA_CHANGO["subtotal"]
               and d["subtotal"] - prev == MANTECA_CHANGO["delta"])
         print(f"    {c} / {q} ({d['cantidad']:g} unidad): {f['of'].producto!r} {txt_cotiza(f['of'])}")
-        print(f"      {d['cantidad']:g} × ${f['of'].precio:,.2f} = ${d['subtotal']:,.2f} · antes del fix "
+        print(f"      {d['envases']:g} × ${f['of'].precio:,.2f} = ${d['subtotal']:,.2f} · antes del fix "
               f"{d['cantidad']:g} × ${MANTECA_CHANGO['precio_antes_fix']:,.0f} = ${prev:,.2f} → "
               f"+${d['subtotal'] - prev:,.2f} · cajón {k['cajon']} factor {f_num(k['factor'])} · cobra {k['cobra']} · "
               f"estado {d['estado']} · {'COINCIDE' if ok else 'NO COINCIDE'} con lo documentado "
-              f"(2 × $3.654 = $7.308, +$6.090)")
+              f"(2 × $3.654 = $7.308, +$6.090 — documentado ANTES de la Tarea 26 paso b)")
     else:
         print(f"    {c} / {q}: SIN representante en esta captura")
     q = "Tomate perita lata"
@@ -560,7 +582,7 @@ def main_cli():
     print(f"  (2) {ctx['estado_t25']}")
     print(f"  (3) {len(ctx['reps'])} representantes encontrados sin ambigüedad; puntuar == match_score")
     print("  (4) cotiza por unidad de medida ⟺ métrica con fuente_contenido 'api'")
-    print("  (5) subtotal = precio × cantidad en cada fila; Σ = total_envase; cajones suman 20")
+    print("  (5) subtotal = precio × envases en cada fila; Σ = total_envase; cajones suman 20")
     print("  (6) escenarios sin quitar nada == hoy, con mediana fija y sin ella")
     print("  (7) unidad pedida en peso/volumen para los ítems en kg/litro")
 

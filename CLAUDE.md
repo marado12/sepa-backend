@@ -74,6 +74,13 @@ de sucursales tenga Vea a ~1,5 km de Junín (regresión del problema abierto #2)
 Por eso el optimizador no se tocó al sumar la fuente online. **Si cambiás esta forma,
 cambiás las dos rutas a la vez** — es el punto de acople del backend.
 
+✏️ **Tarea 26 (18/09): la ruta online suma dos campos opcionales.** `envases` es cuántas veces
+se cobra `precio_min` (los envases enteros que cubren lo pedido; `cantidad` queda como lo
+pedido) y `sin_elegible` marca la fila en la que ningún candidato puede contestar lo pedido:
+queda fuera del total y del %, pero sigue votando en la mediana. Una entrada sin `envases`
+—la ruta SEPA, un precio manual— se cobra `precio_min × cantidad`, como siempre
+(`main._envases`, `main._en_el_total`). `_canasta_optima` no los lee.
+
 ## Variables de entorno
 
 | Variable | Default | Para qué |
