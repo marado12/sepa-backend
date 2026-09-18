@@ -144,6 +144,20 @@ check(st["ultimo_exito"] is not None, "ultimo_exito registrado")
 check(st["origen"] == "sepa_hoy", "origen=sepa_hoy")
 check(st["intentos_fallidos"] == 0, "contador de fallos reseteado")
 
+# ── 8. /api/status expone qué commit tiene desplegado Render (Tarea 27) ─────
+print("\n[8] /api/status expone render_git_commit y render_git_branch")
+st = main.get_status()
+check("render_git_commit" in st, "la clave render_git_commit existe")
+check("render_git_branch" in st, "la clave render_git_branch existe")
+check(st.get("render_git_commit") is None, "en local, sin la env var de Render, da None")
+check(st.get("render_git_branch") is None, "en local, sin la env var de Render, da None")
+os.environ["RENDER_GIT_COMMIT"] = "abc1234"
+os.environ["RENDER_GIT_BRANCH"] = "main"
+st = main.get_status()
+check(st["render_git_commit"] == "abc1234", "con la env var seteada, la refleja")
+check(st["render_git_branch"] == "main", "con la env var seteada, la refleja")
+os.environ.pop("RENDER_GIT_COMMIT"); os.environ.pop("RENDER_GIT_BRANCH")
+
 shutil.rmtree(CACHE, ignore_errors=True)
 print("\n" + ("="*60))
 print(f"RESULTADO: {'TODO OK' if not FALLOS else str(len(FALLOS)) + ' FALLAS'}")

@@ -2511,6 +2511,9 @@ def get_status():
         "fuente_precios": FUENTE_PRECIOS,
         "cadenas_online": sorted(FuenteCompuesta(FuenteVTEX(), FuenteCoto()).cadenas_soportadas()),
         "catalogo_sucursales": sucursales.resumen(),
+        # ── Tarea 27: qué commit tiene desplegado Render ──
+        "render_git_commit": os.environ.get("RENDER_GIT_COMMIT"),
+        "render_git_branch": os.environ.get("RENDER_GIT_BRANCH"),
     }
 
 
