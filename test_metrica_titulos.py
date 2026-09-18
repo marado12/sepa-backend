@@ -426,6 +426,109 @@ def test_un_porcentaje_no_cuenta_envases():
     assert main._extraer_cantidades_desc(desc)[:1] == [(226.0, "peso")]
 
 
+# ── (f) Fracciones: "1/2 Kg" es medio kilo (Tarea 26, paso a) ────
+# `_RE_CANT_DESC` no conoce la barra: en "1/2 Kg" matcheaba "2 Kg" y el azúcar de Chango Más salía
+# de 2 kg. Con el subtotal nuevo de la Tarea 26 la métrica fija el precio: un paquete de medio kilo
+# "cubriría" los 2 kg pedidos y la fila subcobraría sin que se note.
+# Pero "N/M unidad" NO siempre es una fracción. SEPA del 04/05, todas de Coto: "160/112g" (atún,
+# bruto/escurrido), "9.5/6kg" y "10/6kg" (lavasecarropas, lava/seca), "4/ 64g" (tablet). Por eso
+# solo se divide la fracción propia de denominador 2 o 4, que es la única forma vista como fracción.
+CAPTURA_CANASTA = Path(__file__).resolve().parent / "tests" / "capturas" / "canasta_default_2026-09-14.json"
+# Filas cuya referencia no puede dar `leer_titulo` (lee "1/2 Kg" como "número suelto [1]" y no da
+# número). Leídas a mano del título crudo. Es la única fracción de las capturas y fixtures en disco.
+LEIDO_A_MANO = {("Chango Más", "Azúcar Rubio Azucel Orgánica 1/2 Kg"): ("peso", 500.0)}
+# Caché propio: _filas decide con `if not _CACHE` y compartirlo le metía estas filas adentro.
+_CACHE_CANASTA = {}
+
+
+def _filas_canasta():
+    """{(cadena, producto, precio): fila} — filas distintas de la captura de la canasta, sin pesables."""
+    if not _CACHE_CANASTA:
+        cap = json.loads(CAPTURA_CANASTA.read_text(encoding="utf-8"))
+        for cadena, por_consulta in instrumento.parsear(cap).items():
+            for filas in por_consulta.values():
+                for f in filas:
+                    of = f["of"]
+                    um = (of.unidad_medida or "").strip().lower()
+                    if of.contenido and um and um not in _UNIDAD_SIN_CONTENIDO:
+                        continue        # pesable: el título no dice lo que cotiza (test_pesables.py)
+                    _CACHE_CANASTA.setdefault((cadena, of.producto, of.precio), f)
+    return _CACHE_CANASTA
+
+
+def test_la_fraccion_divide():
+    """Antes del fix: 2000 g en las cinco (se quedaba con el denominador)."""
+    f = next(f for (c, t, _p), f in _filas_canasta().items()
+             if c == "Chango Más" and t == "Azúcar Rubio Azucel Orgánica 1/2 Kg")
+    assert _txt(_metrica(f["of"])) == ("peso", 500.0), _txt(_metrica(f["of"]))
+    # Jumbo, SEPA del 04/05 (`_desc_norm`). Otra grafía que la de Chango Más: pegada a la unidad.
+    for desc in ["yerba mate taragui 4flex 1/2kg paq-500-g.",
+                 "yerba mate union 4flex 1/2kg paq-500-g.",
+                 "yerba mate mananita 4flex 1/2kg paq-500-g.",
+                 "ravioles bolsa 1/2 kg di pascualle bsa-500-g."]:
+        assert main._extraer_cantidades_desc(desc) == [(500.0, "peso")], desc
+
+
+def test_una_barra_que_no_es_fraccion_no_se_mueve():
+    """Coto, SEPA del 04/05. Dividir siempre daba 1,43 g de atún. Quedan como estaban antes del fix."""
+    for desc, esperado in [
+        ("atun lomo al natural ciudad del lago lat 160/112g", (112.0, "peso")),
+        ("lavasecarropas cf 9.5/6kg blanco . . .", (6000.0, "peso")),
+        ("lavasecarropas samsung 9.5/6kg wd95t504dbeubg", (6000.0, "peso")),
+        ("lavasecarropas bgh 10/6kg inv bwdn10w25ar", (6000.0, "peso")),
+        ("tab 10 gen2 tcl memoria 4/ 64g . . .", (64.0, "peso")),
+    ]:
+        assert main._extraer_cantidades_desc(desc) == [esperado], desc
+    # Número mixto: no aparece en ningún dato visto. Documenta la decisión (hueco antes que leer
+    # 500 g o 2 kg por 1,5 kg); NO es cobertura.
+    assert main._extraer_cantidades_desc("queso 1 1/2 kg") == []
+
+
+def _sin_numero_equivocado():
+    """{cadena: (% de filas con referencia cuya métrica no es un número distinto, n con referencia)}."""
+    cnt = {c: Counter() for c in CADENAS}
+    for (c, t, _p), f in _filas_canasta().items():
+        ref = f["ref"]
+        if (c, t) in LEIDO_A_MANO:
+            tipo, base = LEIDO_A_MANO[(c, t)]
+            ref = {"tipo": tipo, "base": base, "n": 1, "m": base}
+        clase = instrumento.comparar(_metrica(f["of"]), ref)
+        if clase == "sin referencia":
+            continue
+        cnt[c]["ref"] += 1
+        if clase in ("cantidad distinta", "tomó UNA unidad") or clase.startswith("tipo distinto"):
+            cnt[c]["mal"] += 1
+    return {c: ((n["ref"] - n["mal"]) / n["ref"] * 100, n["ref"]) for c, n in cnt.items()}
+
+
+# Medido el 18/09 con el fix, captura de la canasta del 14/09 (fija: el número es exacto, no una
+# estimación). Antes del fix Chango Más daba 99,83 (596 de 597: el azúcar "1/2 Kg" leído como 2 kg).
+# Lo que no es 100 ya estaba y NO es de este bug (hallazgos, no se tocan acá): Vea 97,53 son 19
+# "Six Pack"/"Four Pack"/"Eight Pack" donde la métrica toma UNA botella; Coto 99,44 son dos gaseosas
+# cuyo título escribe mal la unidad ("Coca-Cola Sabor Liviano 1,75 Ml", "... Suave 2.25cc").
+PISO_SIN_NUMERO_EQUIVOCADO = {"Carrefour": 100.0, "Día": 100.0, "Vea": 97.53, "Chango Más": 100.0,
+                              "Coto": 99.44}
+# Medida: 2,47 (Vea 97,53 contra 100). ⚠️ Esta brecha NO detecta el bug de la fracción: Chango Más no
+# es el extremo, lo detecta el piso. Existe para que una regresión en otra cadena no se esconda.
+# ⚠️ Lección de la Tarea 20: si se pone en rojo, antes de tocar la constante mirá si alguna cadena
+# BAJÓ. Una brecha también sube cuando una sola cadena MEJORA —en la Tarea 20 pasó de 40,1 a 42,1 con
+# un arreglo correcto—, y el número agregado no distingue un caso del otro. El detalle por cadena, sí.
+BRECHA_SIN_NUMERO_EQUIVOCADO_MAX = 2.5
+
+
+def test_ninguna_cadena_queda_abajo_de_su_piso_sin_numero_equivocado():
+    m = _sin_numero_equivocado()
+    bajo = {c: f"{p:.2f}% de {n}" for c, (p, n) in m.items() if p < PISO_SIN_NUMERO_EQUIVOCADO[c]}
+    assert not bajo, f"bajo el piso: {bajo} — todas: { {c: round(p, 2) for c, (p, _n) in m.items()} }"
+
+
+def test_la_brecha_sin_numero_equivocado_no_se_abre():
+    m = {c: p for c, (p, _n) in _sin_numero_equivocado().items()}
+    brecha = max(m.values()) - min(m.values())
+    assert brecha <= BRECHA_SIN_NUMERO_EQUIVOCADO_MAX, \
+        f"brecha {brecha:.2f} > {BRECHA_SIN_NUMERO_EQUIVOCADO_MAX} — por cadena: { {c: round(p, 2) for c, p in m.items()} }"
+
+
 if __name__ == "__main__":
     fallos = 0
     for nombre, fn in list(globals().items()):

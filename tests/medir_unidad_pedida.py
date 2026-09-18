@@ -50,7 +50,10 @@ ESPERADO_T25 = {
         "Carrefour":  (143632.25, 107724.19, -7.6, -30.7, 17),
         "Día":        (115272.00, 86454.00, 8.7, -18.5, 16),
         "Vea":        (102676.00, 77007.00, -11.4, -33.6, 16),
-        "Chango Más": (165942.60, 124456.95, -4.5, -28.4, 16),
+        # ✏️ Tarea 26 paso (a), 18/09: era (165942.60, 124456.95, -4.5, -28.4, 16). El fix de "1/2 Kg"
+        # (leído como 2 kg) cambia el representante del azúcar: "Azúcar Rubio Azucel Orgánica 1/2 Kg"
+        # $1.644,30 → "Azúcar Azucel 1kg" $1.249. No es un cambio de la Tarea 25.
+        "Chango Más": (165152.00, 123864.00, -3.1, -27.3, 16),
         "Coto":       (124931.95, 93698.96, 33.8, 0.3, 14),
     },
 }

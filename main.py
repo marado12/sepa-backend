@@ -540,6 +540,18 @@ _RE_CANT_DESC = re.compile(
     re.IGNORECASE,
 )
 
+# "1/2 Kg": sin esto `_RE_CANT_DESC` matchea "2 Kg" y el medio kilo sale de 2 kg (azúcar de Chango
+# Más, Tarea 26). Pero "N/M unidad" no siempre es una fracción: en el SEPA (04/05, Coto) hay
+# "160/112g" (atún, bruto/escurrido), "9.5/6kg" (lavasecarropas) y "4/ 64g" (tablet). Solo se
+# divide la fracción propia de denominador 2 o 4 —la única forma vista como fracción: Chango Más
+# "1/2 Kg" y Jumbo "1/2kg"—; el resto sigue como antes. No arranca pegada a letra ni número:
+# "hd7767/00" es un modelo.
+_RE_CANT_FRACCION = re.compile(
+    r"(?<![\w.,/])(\d+)\s*/\s*(\d+)\s*(" + _U_ALT + r")\b",
+    re.IGNORECASE,
+)
+_RE_NUMERO_MIXTO_ANTES = re.compile(r"\d\s+$")
+
 # Regex para unidades contables: "x12 unidades", "12un", "x 6 huevos", "pack x30", etc.
 _RE_CANT_COUNT = re.compile(
     r"[xX×]?\s*(\d+)\s*"
@@ -685,6 +697,7 @@ def _extraer_cantidades_desc(desc_norm: str) -> list[tuple[float, str]]:
         "agua 6 x 500ml" → [(3000.0, 'volumen')]  ← pack completo
         "papel higienico 30 mts x 4 un" → [(120.0, 'longitud')]  ← 4 rollos de 30 m
         "postre danette pack x4 95 g." → []  ← ¿95 g cada pote o en total? No se sabe
+        "azucar rubio azucel organica 1/2 kg" → [(500.0, 'peso')]  ← no 2 kg
     """
     # Peso o volumen con un contable: la forma del título no deja decidir si la medida
     # es de una unidad o del total, y no se publica métrica (decisión del 13/09, ver
@@ -714,6 +727,22 @@ def _extraer_cantidades_desc(desc_norm: str) -> list[tuple[float, str]]:
                 posiciones_usadas.update(range(m.start(), m.end()))
         except ValueError:
             pass
+
+    # Fracción propia ("1/2 kg", "3/4 kg"): n/d. Las posiciones quedan usadas para que el "2 kg" de
+    # adentro no se lea solo. Número mixto ("1 1/2 kg", no visto en ningún dato): hueco — ni 500 g ni
+    # 2 kg, que es lo que daría leer una parte sola.
+    for m in _RE_CANT_FRACCION.finditer(desc_norm):
+        if m.start() in posiciones_usadas:
+            continue
+        n, d = int(m.group(1)), int(m.group(2))
+        if not (0 < n < d and d in (2, 4)):
+            continue            # "160/112g", "9.5/6kg": no es una fracción, sigue como antes
+        posiciones_usadas.update(range(m.start(), m.end()))
+        if _RE_NUMERO_MIXTO_ANTES.search(desc_norm[:m.start()]):
+            continue
+        base = _a_base(n / d, m.group(3))
+        if base:
+            resultados.append(base)
 
     for m in _RE_CANT_DESC.finditer(desc_norm):
         if m.start() in posiciones_usadas:
