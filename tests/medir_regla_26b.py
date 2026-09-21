@@ -39,7 +39,7 @@ escalada está bien, esp y subtotal usan los dos cantidad_base, que se cancela")
 quedar contaminado por la cantidad ORIGINAL pedida. Antes de exponer la ficha se repone
 `cantidad` al valor pedido real, solo para mostrarlo — no toca ningún número de plata.
 Las filas excluidas (case 4 o sin candidato elegible) se sacan de `precios` SOLO para la
-llamada de esa cadena (vía `pop`, análogo a `quitar` en `medir_unidad_pedida.correr`): no
+llamada de esa cadena (vía `pop`, como hacía `quitar` en `medir_unidad_pedida.correr` ✏️ hasta el paso c): no
 entran a `total_envase` ni al `%`, pero siguen presentes en el diccionario completo que recibe
 `_promedios_por_producto`, así que siguen votando en la mediana.
 
