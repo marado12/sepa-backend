@@ -363,6 +363,11 @@ def test_la_respuesta_trae_fichas_y_el_alias_ranking():
     assert "fichas" in d and d["fichas"]
     assert "ranking" in d, "el alias no puede desaparecer todavía"
     assert "sin_ninguna_cadena" in d and "n_pedidos" in d
+    # ✏️ 21/09, Tarea 26 paso (d): el motivo de cada producto del aviso, y la lista de filas que la cadena
+    # vende pero no contestan lo pedido.
+    assert isinstance(d.get("sin_ninguna_motivo"), dict)
+    assert sorted(d["sin_ninguna_motivo"]) == sorted(d["sin_ninguna_cadena"])
+    assert all(isinstance(fi.get("no_contestan"), list) for fi in d["fichas"])
 
 
 def test_fichas_y_ranking_no_se_contradicen_en_la_plata():

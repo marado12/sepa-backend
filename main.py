@@ -23,7 +23,7 @@ from outliers import detect_outliers, outlier_summary, load_all_chains, PARQUET_
 
 import sucursales
 from fuentes import FuenteCompuesta, FuenteCoto, FuenteVTEX
-from precios_vtex import buscar_precios_online, precio_unitario
+from precios_vtex import _pedido, _pide_contenido, buscar_precios_online, precio_unitario
 import promos_sitio
 
 logging.basicConfig(level=logging.INFO)
@@ -1996,6 +1996,37 @@ def _sin_ninguna_cadena(canasta: list, precios: dict) -> list[str]:
     return [p["nombre"] for p in canasta if p["nombre"] not in con_precio]
 
 
+def _motivo_sin_ninguna(canasta: list, precios: dict) -> dict[str, dict]:
+    """
+    Por qué cada producto de `_sin_ninguna_cadena` no entra en ninguna ficha (Tarea 26, paso d).
+    El aviso decía "ninguna cadena lo tiene" para los tres casos, y solo el primero es eso:
+
+      nadie_lo_tiene    ninguna cadena devolvió un representante.
+      ninguna_contesta  alguna lo tiene, pero ningún candidato contesta lo pedido: todas las
+                        entradas son `sin_elegible` (el tomate por kilo cuando se pidieron latas).
+      pedido_ilegible   ídem, porque el pedido declara contenido y no se puede leer ("1,5 ml",
+                        regla del paso a2): no es que no lo vendan, es que no se sabe qué se pidió.
+
+    Viaja con la cantidad y la unidad pedidas, para que el aviso pueda nombrar lo que no se leyó.
+    La ruta SEPA no marca `sin_elegible`: ahí todo lo de `_sin_ninguna_cadena` es `nadie_lo_tiene`.
+    """
+    con_representante = {prod for (_c, prod) in precios}
+    nadie = set(_sin_ninguna_cadena(canasta, precios))
+    motivos = {}
+    for p in canasta:
+        nombre = p["nombre"]
+        if nombre not in nadie:
+            continue
+        if nombre not in con_representante:
+            motivo = "nadie_lo_tiene"
+        elif _pide_contenido(p) and _pedido(p, _extraer_cantidades_desc) is None:
+            motivo = "pedido_ilegible"
+        else:
+            motivo = "ninguna_contesta"
+        motivos[nombre] = {"motivo": motivo, "cantidad": p.get("cantidad"), "unidad": p.get("unidad")}
+    return motivos
+
+
 def _promedios_por_producto(canasta: list, precios: dict) -> dict:
     """
     Referencia de mercado por producto, en precio por unidad de contenido.
@@ -2090,7 +2121,7 @@ def _fichas(canasta: list, precios: dict, resultado: dict, promedios: dict,
     fichas = []
     for cadena in cadenas:
         d = resultado.get(cadena)
-        detalle_out, faltantes = [], []
+        detalle_out, faltantes, no_contestan = [], [], []
         pagado = esperado = 0.0
         filas_con_promedio = []
 
@@ -2099,6 +2130,13 @@ def _fichas(canasta: list, precios: dict, resultado: dict, promedios: dict,
             crudo = precios.get((cadena, nombre))
             entry = _en_el_total(crudo)
             promedio = promedios.get(nombre)
+            # La cadena tiene representante, pero ningún candidato contesta lo pedido (decisión 6
+            # de la Tarea 26): no es "no lo tiene". Lo que lo distingue es la marca `sin_elegible`
+            # de abajo, no el `estado`, que sigue en `faltante` A PROPÓSITO (Tarea 26, paso d): un
+            # frontend de antes de (d) —una pestaña abierta— no conoce otro estado y pintaba la
+            # fila como normal, "2 × $0 … $0". Pasarlo a "sin_elegible" queda para la limpieza
+            # posterior a la Tarea 14; el frontend de (d) ya acepta los dos.
+            sin_elegible = crudo is not None and entry is None
             estado = _estado_fila(entry, promedio)
             envases = _envases(prod, entry) if entry else None
 
@@ -2115,17 +2153,17 @@ def _fichas(canasta: list, precios: dict, resultado: dict, promedios: dict,
                 "promedio": promedio,
                 "delta_pct": None,
             }
-            if crudo is not None and entry is None:
-                # Ningún candidato de la cadena contesta lo pedido (decisión 6 de la Tarea
-                # 26). Se muestra como faltante y queda fuera del total y del %; el
-                # representante de siempre viaja aparte y sigue votando en la mediana.
-                # El estado propio y su texto son el paso (d).
+            if sin_elegible:
+                # Queda fuera del total, del % y de `n_disponibles`; el representante de siempre
+                # viaja aparte (su título dice qué vende la cadena) y sigue votando en la mediana.
+                # La marca se conserva para quien lea respuestas de antes del paso (d).
                 fila["sin_elegible"] = True
                 fila["descartado"] = {"precio_unit": crudo["precio_min"],
                                       "precio_por_100u": crudo.get("precio_por_100u")}
             if estado == "faltante":
-                faltantes.append(nombre)
-                # Saber quién sí lo tiene es accionable; un guion no.
+                # "Le falta" solo lo que la cadena no tiene; lo que tiene pero no contesta lo
+                # pedido va aparte (paso d). En los dos, saber quién sí lo tiene es accionable.
+                (no_contestan if sin_elegible else faltantes).append(nombre)
                 fila["tambien_en"] = sorted(tiene.get(nombre, []))
             elif estado == "ok":
                 pu = entry["precio_por_100u"]
@@ -2169,6 +2207,7 @@ def _fichas(canasta: list, precios: dict, resultado: dict, promedios: dict,
             "n_disponibles": d["n_encontrados"] if d else 0,
             "n_comparables": len(comparables),
             "faltantes": faltantes,
+            "no_contestan": no_contestan,        # Tarea 26 (d): la vende, pero no contesta lo pedido
             "total_envase": round(total_envase, 2),
             "reintegro": round(r_total, 2),
             "total_final": float(d["total_final"]) if d else 0.0,
@@ -2931,6 +2970,7 @@ async def comparar(req: ComparacionRequest):
     fichas = _fichas(canasta, precios, resultado, promedios, cadenas_ficha,
                      promos_del_sitio)
     sin_ninguna = _sin_ninguna_cadena(canasta, precios)
+    sin_ninguna_motivo = _motivo_sin_ninguna(canasta, precios)
 
     # Ordenar cadenas por total_final
     ranking = sorted(
@@ -2956,6 +2996,7 @@ async def comparar(req: ComparacionRequest):
         # cobertura y después alfabético — el orden no afirma nada.
         "fichas": fichas,
         "sin_ninguna_cadena": sin_ninguna,   # no penalizan a ninguna ficha
+        "sin_ninguna_motivo": sin_ninguna_motivo,   # Tarea 26 (d): por qué, producto por producto
         "n_pedidos": len(canasta),           # para el aviso "4 de los 6 que pediste"
         # DEPRECADO: `ranking` sobrevive una release porque App.jsx:205 lo lee sin
         # optional chaining y sacarlo ahora rompe producción entre el deploy del

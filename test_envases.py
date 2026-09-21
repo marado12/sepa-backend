@@ -205,11 +205,18 @@ def test_sin_candidato_elegible_sale_del_total_y_sigue_votando():
     assert e["sin_elegible"] and e["envases"] is None
     assert e["precio_min"] == 6999.0                            # el ganador de siempre, marcado
     fila = _fila(fichas_r, "Carrefour", "Tomate perita lata")
+    # ✏️ 21/09, paso (d): la cadena lo vende —el tomate "x kg"— pero ninguna oferta contesta "2 unidad": no
+    # es "no lo tiene". Va a `no_contestan`, no a `faltantes`, y sigue diciendo quién sí lo tiene. Lo que la
+    # distingue es la marca `sin_elegible`; el `estado` sigue en "faltante" a propósito: con otro estado, un
+    # frontend de antes de (d) pintaba "2 × $0 … $0" (medido renderizando). Hasta (d) la fila iba a `faltantes`.
     assert fila["estado"] == "faltante" and fila["sin_elegible"] and fila["subtotal"] == 0
     assert fila["descartado"]["precio_unit"] == 6999.0
-    assert "Carrefour" not in fila["tambien_en"]
+    assert fila["descartado"]["precio_por_100u"]["desc_ganadora"] == "Tomate perita x kg."
+    assert fila["tambien_en"] == ["Chango Más", "Coto", "Día", "Vea"]
     fi_r, fi = fichas_r["Carrefour"], fichas["Carrefour"]
-    assert "Tomate perita lata" in fi_r["faltantes"]
+    assert "Tomate perita lata" not in fi_r["faltantes"]
+    assert fi_r["no_contestan"] == ["Tomate perita lata"]
+    assert fi["no_contestan"] == [] and fichas_r["Día"]["no_contestan"] == []
     assert fi_r["n_disponibles"] == fi["n_disponibles"] - 1
     assert abs(fi_r["total_envase"] - (fi["total_envase"] - 3158.0)) < 0.005
     assert fi_r["n_con_promedio"] == fi["n_con_promedio"] - 1
@@ -218,6 +225,38 @@ def test_sin_candidato_elegible_sale_del_total_y_sigue_votando():
     # Las otras cadenas no se enteran.
     for c in CADENAS[1:]:
         assert fichas_r[c]["total_envase"] == fichas[c]["total_envase"], c
+
+
+def test_el_aviso_dice_por_que_ninguna_cadena_lo_tiene():
+    """
+    ✏️ 21/09, paso (d). Lo que no entra en ninguna ficha iba a un solo aviso, "Ninguna cadena tiene X",
+    aunque el motivo fuera otro. Los tres casos, por el camino real y con ofertas de la captura:
+      nadie_lo_tiene    ninguna cadena devuelve un candidato ("Harissa" no está en la captura);
+      ninguna_contesta  hay candidatos, pero ninguno contesta lo pedido (tomate recortado a "x kg" en
+                        las 5 cadenas: ninguno dice cuántas latas);
+      pedido_ilegible   "1,5 ml" no se lee (regla del paso a2): no es que no lo vendan, es que no se
+                        sabe qué se pidió.
+    """
+    filas_t = _filas()
+    recorte = {(c, "Tomate perita lata"): [f["of"].producto for f in filas_t[c].get("Tomate perita lata", [])
+                                           if precios_vtex._cotiza_um(f["of"])] for c in CADENAS}
+    canasta = [dict(p, cantidad=1.5, unidad="ml") if p["nombre"] == "Shampoo" else p for p in CANASTA]
+    canasta.append({"nombre": "Harissa", "cantidad": 1.0, "unidad": "unidad", "categoria": "",
+                    "palabras_clave": ["harissa"]})
+    precios, _prom, fichas = _correr(canasta=canasta, recorte=recorte)
+    nadie = main._sin_ninguna_cadena(canasta, precios)
+    motivos = main._motivo_sin_ninguna(canasta, precios)
+    assert sorted(nadie) == sorted(motivos) == ["Harissa", "Shampoo", "Tomate perita lata"], (nadie, motivos)
+    assert motivos["Harissa"] == {"motivo": "nadie_lo_tiene", "cantidad": 1.0, "unidad": "unidad"}
+    assert motivos["Tomate perita lata"] == {"motivo": "ninguna_contesta", "cantidad": 2, "unidad": "unidad"}
+    assert motivos["Shampoo"] == {"motivo": "pedido_ilegible", "cantidad": 1.5, "unidad": "ml"}
+    # Los del aviso no entran en ninguna ficha: ni como faltante ni como "no sirve para lo pedido".
+    for fi in fichas.values():
+        nombres = {d["producto"] for d in fi["detalle"]}
+        assert not nombres & set(nadie), fi["cadena"]
+    # Sin recorte ni pedidos raros, en la canasta por defecto el aviso está vacío.
+    precios_d, _p, _f = _correr()
+    assert main._motivo_sin_ninguna(CANASTA, precios_d) == {}
 
 
 def test_el_delta_de_una_fila_no_depende_de_cuantos_envases():
