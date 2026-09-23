@@ -114,15 +114,15 @@
  },
  "__resumen": {
   "filas_unicas": 2194,
-  "candidatos": 2275,
+  "candidatos": 2445,
   "acuerdo": 2051,
   "adjudicado con evidencia extra": 30,
   "A=B dudoso": 133,
   "adjudicado": 113,
   "etiquetas": {
-   "otro producto": 513,
-   "correcto": 1636,
-   "dudoso": 126
+   "otro producto": 624,
+   "dudoso": 138,
+   "correcto": 1683
   }
  },
  "__inconsistencias_ean": {
@@ -131,14 +131,28 @@
     "dudoso",
     "otro producto"
    ],
-   "motivo": "mismo EAN con dos títulos: Día lo llama 'Endulzante Hileret Light' (otro producto) y Carrefour 'Azúcar Hileret light' (dudoso, como el resto de los 'azúcar light'). Ninguna de las dos es representante."
+   "motivo": "Día lo llama 'Endulzante Hileret Light' (otro producto) y Carrefour 'Azúcar Hileret light' (dudoso, como el resto de los 'azúcar light')."
+  },
+  "Fideos spaghetti|7790070336002": {
+   "etiquetas": [
+    "correcto",
+    "dudoso"
+   ],
+   "motivo": "Chango Más y Vea lo llaman 'Fideos Matarazzo Spaghetti 500g' (correcto) y Carrefour 'Fideos sin tacc spaghetti' / Coto 'Libre De Gluten' (dudoso desde la corrección del 22/09). Apareció al aplicar esa corrección: si el EAN contara como identidad, las cuatro serían la misma etiqueta."
+  },
+  "Harina 000|7792180139320": {
+   "etiquetas": [
+    "correcto",
+    "dudoso"
+   ],
+   "motivo": "el título de Vea omite el tipo ('Harina Cañuelas Ultra Refinada Vitamina D') y quedó dudoso; el mismo EAN en Día, Chango Más y Carrefour dice 000. Es un caso de FORMA DE TÍTULO donde el EAN resolvería la duda: la decisión de usarlo es de Santiago."
   },
   "Yerba mate|7790070509123": {
    "etiquetas": [
     "correcto",
     "dudoso"
    ],
-   "motivo": "mismo EAN en 4 cadenas: en Vea el título dice 'Sabor Poleo' (dudoso por el criterio) y en Carrefour, Día y Chango Más es Chamigo común (correcto). O el título de Vea está mal cargado o el EAN está compartido; la evidencia se contradice. Ninguna es representante."
+   "motivo": "el mismo EAN en 4 cadenas: en Vea el título dice 'Sabor Poleo' (dudoso por el criterio) y en Carrefour, Día y Chango Más es Chamigo común (correcto). O el título de Vea está mal cargado o el EAN está compartido."
   }
  },
  "candidatos": [
@@ -203,11 +217,11 @@
    "score_sin_tamano": 0.325,
    "motivo": "coto rechazo",
    "representante": false,
-   "etiqueta": "correcto",
+   "etiqueta": "dudoso",
    "frase": "Leche Clásica Mas Liviana",
    "nota": "El título no dice 'entera'. El EAN la identifica como el mismo producto que la fila #32. 'Más liviana' (2%) es la variante light de la Clásica, no descremada ni en polvo; las reglas cuentan la variante light como correcta. Etiqueta igual a #23 y #32 para que sean coherentes.",
-   "evidencia_extra": "Mismo EAN 7790742335401 que 'Leche entera larga vida La Serenísima 2 % 1 l.' en Carrefour: es la Clásica Más Liviana 2% de La Serenísima, que la cadena titula como leche entera",
-   "fuente": "adjudicado",
+   "evidencia_extra": "La Serenísima 2 %: el mismo caso que el azúcar light",
+   "fuente": "corrección de Santiago, 22/09",
    "pasadas": {
     "A": "dudoso",
     "B": "dudoso"
@@ -227,11 +241,11 @@
    "score_sin_tamano": null,
    "motivo": "calibracion 09/09",
    "representante": false,
-   "etiqueta": "correcto",
+   "etiqueta": "dudoso",
    "frase": "Leche Clásica Mas Liviana",
    "nota": "El título no dice 'entera'. El EAN la identifica como el mismo producto que la fila #32. 'Más liviana' (2%) es la variante light de la Clásica, no descremada ni en polvo; las reglas cuentan la variante light como correcta. Etiqueta igual a #23 y #32 para que sean coherentes.",
-   "evidencia_extra": "Mismo EAN 7790742335401 que 'Leche entera larga vida La Serenísima 2 % 1 l.' en Carrefour: es la Clásica Más Liviana 2% de La Serenísima, que la cadena titula como leche entera",
-   "fuente": "adjudicado",
+   "evidencia_extra": "La Serenísima 2 %: el mismo caso que el azúcar light",
+   "fuente": "corrección de Santiago, 22/09",
    "pasadas": {
     "A": "dudoso",
     "B": "dudoso"
@@ -755,11 +769,11 @@
    "score_sin_tamano": 0.7,
    "motivo": "pool",
    "representante": false,
-   "etiqueta": "correcto",
+   "etiqueta": "dudoso",
    "frase": "Leche Entera La Serenisima Larga Vida Clásica Más Liviana",
    "nota": "El título dice 'Leche Entera'. 'Clásica Más Liviana' es la variante light (2%) de la leche fluida de vaca; las reglas cuentan la variante light como correcta. No es descremada, en polvo, chocolatada ni vegetal.",
-   "evidencia_extra": "",
-   "fuente": "adjudicado",
+   "evidencia_extra": "La Serenísima 2 %: el mismo caso que el azúcar light",
+   "fuente": "corrección de Santiago, 22/09",
    "pasadas": {
     "A": "correcto",
     "B": "dudoso"
@@ -971,11 +985,11 @@
    "score_sin_tamano": 0.76,
    "motivo": "pool",
    "representante": false,
-   "etiqueta": "correcto",
+   "etiqueta": "dudoso",
    "frase": "Leche entera larga vida La Serenísima 2 %",
    "nota": "La cadena la titula 'Leche entera'. El 2% es menos graso que la entera clásica (3%), pero es una variante light, no descremada; las reglas cuentan la variante light como correcta. Es el mismo EAN que #1 (Coto).",
-   "evidencia_extra": "",
-   "fuente": "adjudicado",
+   "evidencia_extra": "La Serenísima 2 %: el mismo caso que el azúcar light",
+   "fuente": "corrección de Santiago, 22/09",
    "pasadas": {
     "A": "dudoso",
     "B": "dudoso"
@@ -5819,11 +5833,11 @@
    "score_sin_tamano": 0.7,
    "motivo": "pool",
    "representante": false,
-   "etiqueta": "correcto",
+   "etiqueta": "dudoso",
    "frase": "Fideos sin TACC arroz spaghetti",
    "nota": "variante sin TACC, de arroz",
-   "evidencia_extra": "",
-   "fuente": "acuerdo A=B",
+   "evidencia_extra": "sin TACC / de arroz, como el de maíz (#23)",
+   "fuente": "corrección de Santiago, 22/09",
    "pasadas": {
     "A": "correcto",
     "B": "correcto"
@@ -5843,11 +5857,11 @@
    "score_sin_tamano": 0.733,
    "motivo": "pool",
    "representante": false,
-   "etiqueta": "correcto",
+   "etiqueta": "dudoso",
    "frase": "Fideos sin tacc spaghetti",
    "nota": "variante sin TACC",
-   "evidencia_extra": "",
-   "fuente": "acuerdo A=B",
+   "evidencia_extra": "sin TACC / de arroz, como el de maíz (#23)",
+   "fuente": "corrección de Santiago, 22/09",
    "pasadas": {
     "A": "correcto",
     "B": "correcto"
@@ -5867,11 +5881,11 @@
    "score_sin_tamano": 0.76,
    "motivo": "pool",
    "representante": false,
-   "etiqueta": "correcto",
+   "etiqueta": "dudoso",
    "frase": "Fideos Spaghetti",
    "nota": "Blue Patna: probablemente de arroz sin TACC",
-   "evidencia_extra": "",
-   "fuente": "acuerdo A=B",
+   "evidencia_extra": "sin TACC / de arroz, como el de maíz (#23)",
+   "fuente": "corrección de Santiago, 22/09",
    "pasadas": {
     "A": "correcto",
     "B": "correcto"
@@ -6491,11 +6505,11 @@
    "score_sin_tamano": 0.733,
    "motivo": "pool",
    "representante": false,
-   "etiqueta": "correcto",
+   "etiqueta": "dudoso",
    "frase": "Fideos Spaghetti Libre De Gluten",
    "nota": "variante sin gluten",
-   "evidencia_extra": "",
-   "fuente": "acuerdo A=B",
+   "evidencia_extra": "sin TACC / de arroz, como el de maíz (#23)",
+   "fuente": "corrección de Santiago, 22/09",
    "pasadas": {
     "A": "correcto",
     "B": "correcto"
@@ -6899,11 +6913,11 @@
    "score_sin_tamano": 0.733,
    "motivo": "pool",
    "representante": false,
-   "etiqueta": "correcto",
+   "etiqueta": "dudoso",
    "frase": "Fideos spaghetti Schar 250 g. sin TACC",
    "nota": "variante sin TACC (sin gluten), sigue siendo spaghetti seco",
-   "evidencia_extra": "",
-   "fuente": "acuerdo A=B",
+   "evidencia_extra": "sin TACC / de arroz, como el de maíz (#23)",
+   "fuente": "corrección de Santiago, 22/09",
    "pasadas": {
     "A": "correcto",
     "B": "correcto"
@@ -9251,11 +9265,11 @@
    "score_sin_tamano": 0.733,
    "motivo": "pool",
    "representante": false,
-   "etiqueta": "dudoso",
+   "etiqueta": "correcto",
    "frase": "Azucar Cuquets 500 Gr.",
    "nota": "El título no dice el tipo (común, impalpable, terrones, decoración). El prefijo del EAN solo dice que es de la línea de Día y el precio solo no alcanza para identificarlo",
-   "evidencia_extra": "Día, EAN 8480017284402 (prefijo 8480017, el mismo del 'Azúcar Plus DIA Común tipo A'); ningún otro título comparte el EAN; $/100g 138,2, casi igual al común tipo A de Día (138,9)",
-   "fuente": "adjudicado",
+   "evidencia_extra": "Cuquets 500 g: $/100 g 138,2 contra 138,9 del común tipo A, o sea azúcar común",
+   "fuente": "corrección de Santiago, 22/09",
    "pasadas": {
     "A": "dudoso",
     "B": "dudoso"
@@ -14915,11 +14929,11 @@
    "score_sin_tamano": 0.8,
    "motivo": "pool",
    "representante": true,
-   "etiqueta": "correcto",
+   "etiqueta": "dudoso",
    "frase": "Yerba Mate Buen Dia 1 Kg",
    "nota": "El título no menciona hierbas ni sabor, y que Buen Día sea compuesta es una suposición de marca, no un dato. La evidencia extra (solo Chango Más, sin otro título con el mismo EAN) no lo contradice.",
-   "evidencia_extra": "",
-   "fuente": "adjudicado",
+   "evidencia_extra": "Buen Día: mismo criterio que La Cumbrecita",
+   "fuente": "corrección de Santiago, 22/09",
    "pasadas": {
     "A": "dudoso",
     "B": "correcto"
@@ -14939,11 +14953,11 @@
    "score_sin_tamano": 0.76,
    "motivo": "pool",
    "representante": false,
-   "etiqueta": "correcto",
+   "etiqueta": "dudoso",
    "frase": "Yerba Mate Buen Dia 500 G",
    "nota": "El título no menciona hierbas ni sabor, y que Buen Día sea compuesta es una suposición de marca, no un dato. La evidencia extra (solo Chango Más, sin otro título con el mismo EAN) no lo contradice.",
-   "evidencia_extra": "",
-   "fuente": "adjudicado",
+   "evidencia_extra": "Buen Día: mismo criterio que La Cumbrecita",
+   "fuente": "corrección de Santiago, 22/09",
    "pasadas": {
     "A": "dudoso",
     "B": "correcto"
@@ -16979,11 +16993,11 @@
    "score_sin_tamano": 0.867,
    "motivo": "pool",
    "representante": true,
-   "etiqueta": "correcto",
+   "etiqueta": "dudoso",
    "frase": "Yerba mate La Cumbrecita 1 kg.",
    "nota": "el título no menciona hierbas ni que sea compuesta: es yerba mate de la marca La Cumbrecita. Lo de que 'suele ser compuesta' es una suposición sobre la marca que el título no respalda.",
-   "evidencia_extra": "",
-   "fuente": "adjudicado",
+   "evidencia_extra": "La Cumbrecita se vende como 'Clásica con hierbas'; con Adelgamate, Cachamate y Cachamai se usó conocimiento de marca para dudar",
+   "fuente": "corrección de Santiago, 22/09",
    "pasadas": {
     "A": "dudoso",
     "B": "correcto"
@@ -32003,11 +32017,11 @@
    "score_sin_tamano": 0.35,
    "motivo": "coto rechazo",
    "representante": false,
-   "etiqueta": "dudoso",
+   "etiqueta": "correcto",
    "frase": "Picada Desgrasada Estancias Coto X KG",
    "nota": "El título no dice la especie: es el caso 'picada sin especie en el título' que el criterio deja como dudoso hasta tener la categoría. 'Estancias Coto' hace pensar en carne vacuna, pero eso no decide y no se resuelve.",
-   "evidencia_extra": "",
-   "fuente": "adjudicado",
+   "evidencia_extra": "el criterio decía 'dudoso hasta tener la categoría': la categoría es 'Bovinos' y dtoCaracteristicas dice CARNE VACUNA / PICADA",
+   "fuente": "corrección de Santiago, 22/09",
    "pasadas": {
     "A": "dudoso",
     "B": "dudoso"
@@ -32027,11 +32041,11 @@
    "score_sin_tamano": null,
    "motivo": "calibracion 09/09",
    "representante": false,
-   "etiqueta": "dudoso",
+   "etiqueta": "correcto",
    "frase": "Picada Desgrasada Estancias Coto X KG",
    "nota": "El título no dice la especie: es el caso 'picada sin especie en el título' que el criterio deja como dudoso hasta tener la categoría. 'Estancias Coto' hace pensar en carne vacuna, pero eso no decide y no se resuelve.",
-   "evidencia_extra": "",
-   "fuente": "adjudicado",
+   "evidencia_extra": "el criterio decía 'dudoso hasta tener la categoría': la categoría es 'Bovinos' y dtoCaracteristicas dice CARNE VACUNA / PICADA",
+   "fuente": "corrección de Santiago, 22/09",
    "pasadas": {
     "A": "dudoso",
     "B": "dudoso"
@@ -32051,11 +32065,11 @@
    "score_sin_tamano": 0.4,
    "motivo": "coto rechazo",
    "representante": false,
-   "etiqueta": "dudoso",
+   "etiqueta": "correcto",
    "frase": "Picada Especial X KG",
    "nota": "El título no dice 'carne' ni la especie: es el caso 'picada sin especie en el título' que el criterio deja como dudoso hasta tener la categoría. No se resuelve.",
-   "evidencia_extra": "",
-   "fuente": "adjudicado",
+   "evidencia_extra": "ídem #15: categoría 'Bovinos', dtoCaracteristicas CARNE VACUNA / PICADA",
+   "fuente": "corrección de Santiago, 22/09",
    "pasadas": {
     "A": "dudoso",
     "B": "dudoso"
@@ -32075,11 +32089,11 @@
    "score_sin_tamano": null,
    "motivo": "calibracion 09/09",
    "representante": false,
-   "etiqueta": "dudoso",
+   "etiqueta": "correcto",
    "frase": "Picada Especial X KG",
    "nota": "El título no dice 'carne' ni la especie: es el caso 'picada sin especie en el título' que el criterio deja como dudoso hasta tener la categoría. No se resuelve.",
-   "evidencia_extra": "",
-   "fuente": "adjudicado",
+   "evidencia_extra": "ídem #15: categoría 'Bovinos', dtoCaracteristicas CARNE VACUNA / PICADA",
+   "fuente": "corrección de Santiago, 22/09",
    "pasadas": {
     "A": "dudoso",
     "B": "dudoso"
@@ -54741,6 +54755,3236 @@
     "B": "correcto"
    },
    "inconsistencia_ean": false
+  },
+  {
+   "cid": "Vea|Aceite girasol|11",
+   "uid": "Aceite girasol#0",
+   "cadena": "Vea",
+   "item": "Aceite girasol",
+   "titulo": "Aceite  De Girasol 120 Grs Cuisine & Co",
+   "marca": "Cuisine & CO",
+   "ean": "7792052175494",
+   "precio": 2890.0,
+   "etiqueta": "correcto",
+   "frase": "Aceite  De Girasol",
+   "nota": "envase chico (120 g), pero es aceite de girasol puro",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Aceite girasol|14",
+   "uid": "Aceite girasol#1",
+   "cadena": "Carrefour",
+   "item": "Aceite girasol",
+   "titulo": "Aceite Cocinero mezcla soja girasol 900 g.",
+   "marca": "Cocinero",
+   "ean": "7790060234868",
+   "precio": 3465.0,
+   "etiqueta": "otro producto",
+   "frase": "mezcla soja girasol",
+   "nota": "el criterio pone mezcla en otro producto",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Aceite girasol|7",
+   "uid": "Aceite girasol#2",
+   "cadena": "Carrefour",
+   "item": "Aceite girasol",
+   "titulo": "Aceite de girasol en aerosol Fritolim clásico 120 g",
+   "marca": "Cocinero",
+   "ean": "7790070265333",
+   "precio": 4899.0,
+   "etiqueta": "otro producto",
+   "frase": "en aerosol",
+   "nota": "aerosol excluido por criterio",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Aceite girasol|17",
+   "uid": "Aceite girasol#3",
+   "cadena": "Carrefour",
+   "item": "Aceite girasol",
+   "titulo": "Aceite de maíz Arcor 900 cc.",
+   "marca": "Arcor",
+   "ean": "7790580160807",
+   "precio": 6529.0,
+   "etiqueta": "otro producto",
+   "frase": "Aceite de maíz",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Aceite girasol|16",
+   "uid": "Aceite girasol#4",
+   "cadena": "Carrefour",
+   "item": "Aceite girasol",
+   "titulo": "Aceite de maíz Lira 900 cc",
+   "marca": "Lira",
+   "ean": "7790070231697",
+   "precio": 6300.0,
+   "etiqueta": "otro producto",
+   "frase": "Aceite de maíz",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Aceite girasol|21",
+   "uid": "Aceite girasol#5",
+   "cadena": "Carrefour",
+   "item": "Aceite girasol",
+   "titulo": "Aceite de maíz Mazola clásico pet 900 cc.",
+   "marca": "Mazola",
+   "ean": "7790272000794",
+   "precio": 5710.0,
+   "etiqueta": "otro producto",
+   "frase": "Aceite de maíz",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Aceite girasol|18",
+   "uid": "Aceite girasol#6",
+   "cadena": "Carrefour",
+   "item": "Aceite girasol",
+   "titulo": "Aceite mezcla Carrefour Classic 250 ml",
+   "marca": "Carrefour",
+   "ean": "7791720048078",
+   "precio": 2511.0,
+   "etiqueta": "otro producto",
+   "frase": "Aceite mezcla",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Aceite girasol|19",
+   "uid": "Aceite girasol#7",
+   "cadena": "Carrefour",
+   "item": "Aceite girasol",
+   "titulo": "Aceite mezcla Carrefour Classic 500 ml",
+   "marca": "Carrefour",
+   "ean": "7791720048085",
+   "precio": 4540.9,
+   "etiqueta": "otro producto",
+   "frase": "Aceite mezcla",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Aceite girasol|22",
+   "uid": "Aceite girasol#8",
+   "cadena": "Carrefour",
+   "item": "Aceite girasol",
+   "titulo": "Aceite mezcla Natura blend 1.5 l.",
+   "marca": "Natura",
+   "ean": "7790272000053",
+   "precio": 10249.0,
+   "etiqueta": "otro producto",
+   "frase": "Aceite mezcla",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Aceite girasol|23",
+   "uid": "Aceite girasol#9",
+   "cadena": "Carrefour",
+   "item": "Aceite girasol",
+   "titulo": "Aceite mezcla Natura blend 900 cc.",
+   "marca": "Natura",
+   "ean": "7790272000046",
+   "precio": 6289.0,
+   "etiqueta": "otro producto",
+   "frase": "Aceite mezcla",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Vea|Aceite girasol|15",
+   "uid": "Aceite girasol#10",
+   "cadena": "Vea",
+   "item": "Aceite girasol",
+   "titulo": "Aceite Olivado X 900 Ml Lira",
+   "marca": "LIRA",
+   "ean": "7790070231574",
+   "precio": 6890.0,
+   "etiqueta": "otro producto",
+   "frase": "Aceite Olivado",
+   "nota": "olivado = mezcla con oliva, excluido",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Vea|Aceite girasol|14",
+   "uid": "Aceite girasol#11",
+   "cadena": "Vea",
+   "item": "Aceite girasol",
+   "titulo": "Pulpitos en Aceite de Girasol 111 Grs Cuisine & Co Premium",
+   "marca": "CUISINE & CO PREMIUM",
+   "ean": "7792052096522",
+   "precio": 10499.0,
+   "etiqueta": "otro producto",
+   "frase": "Pulpitos en Aceite de Girasol",
+   "nota": "conserva de pulpitos, no aceite",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Chango Más|Aceite girasol|15",
+   "uid": "Aceite girasol#12",
+   "cadena": "Chango Más",
+   "item": "Aceite girasol",
+   "titulo": "Rocío Vegetal Check A Base De Aceite De Girasol 120 G",
+   "marca": "Check",
+   "ean": "7799120004052",
+   "precio": 3999.0,
+   "etiqueta": "otro producto",
+   "frase": "Rocío Vegetal",
+   "nota": "spray/rocío vegetal, equivalente a aerosol",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Arroz largo fino|19",
+   "uid": "Arroz largo fino#0",
+   "cadena": "Carrefour",
+   "item": "Arroz largo fino",
+   "titulo": "Arroz blanco Shangrila 1 kg",
+   "marca": "Shangrila",
+   "ean": "7798078450379",
+   "precio": 1240.0,
+   "etiqueta": "dudoso",
+   "frase": "Arroz blanco",
+   "nota": "El titulo confirma que es arroz blanco (no integral ni yamani) pero omite el tipo de grano, que es justo lo que el criterio usa para decidir: Shangrila vende largo fino, doble carolina (otro producto) y parboil (dudoso por criterio). 'Blanco' por si solo no descarta ninguno de los dos; asumir largo fino seria apoyarse en la convencion de mercado, no en el titulo. Resoluble con la ficha del producto o la etiqueta del envase.",
+   "evidencia_extra": "",
+   "fuente": "adjudicado",
+   "pasadas": {
+    "A": "correcto",
+    "B": "dudoso"
+   }
+  },
+  {
+   "cid": "Vea|Arroz largo fino|15",
+   "uid": "Arroz largo fino#1",
+   "cadena": "Vea",
+   "item": "Arroz largo fino",
+   "titulo": "Fideos de Arroz Finos 300 Grs Soyarroz",
+   "marca": "SOYARROZ",
+   "ean": "7798094170268",
+   "precio": 4299.0,
+   "etiqueta": "otro producto",
+   "frase": "Fideos de Arroz Finos",
+   "nota": "Pasta hecha de arroz, no es arroz en grano",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Atún natural|10",
+   "uid": "Atún natural#0",
+   "cadena": "Carrefour",
+   "item": "Atún natural",
+   "titulo": "Atún en aceite La campagnola en lata 300 g.",
+   "marca": "La Campagnola",
+   "ean": "7790580138769",
+   "precio": 9079.0,
+   "etiqueta": "otro producto",
+   "frase": "Atún en aceite",
+   "nota": "El criterio pone \"al aceite\" en otro producto; el ítem pide atún al natural",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Café molido|16",
+   "uid": "Café molido#0",
+   "cadena": "Día",
+   "item": "Café molido",
+   "titulo": "Nescafe Dolca Molido Torrado X 190 Gr.",
+   "marca": "DOLCA",
+   "ean": "8445291586864",
+   "precio": 6321.0,
+   "etiqueta": "correcto",
+   "frase": "Molido Torrado",
+   "nota": "café torrado molido, 190 g",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Día|Café molido|15",
+   "uid": "Café molido#1",
+   "cadena": "Día",
+   "item": "Café molido",
+   "titulo": "Nescafe Tostado Y Molido Puro X 190 Gr.",
+   "marca": "DOLCA",
+   "ean": "8445291583719",
+   "precio": 8070.0,
+   "etiqueta": "correcto",
+   "frase": "Tostado Y Molido",
+   "nota": "tostado molido puro, 190 g",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Día|Detergente|39",
+   "uid": "Detergente#0",
+   "cadena": "Día",
+   "item": "Detergente",
+   "titulo": "Jabon en polvo ALA Bicarbonato 800 Gr.",
+   "marca": "ALA",
+   "ean": "7791290796829",
+   "precio": 3320.0,
+   "etiqueta": "otro producto",
+   "frase": "Jabon en polvo",
+   "nota": "jabón en polvo para ropa, no lavavajillas",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Detergente|34",
+   "uid": "Detergente#1",
+   "cadena": "Día",
+   "item": "Detergente",
+   "titulo": "Jabon Liquido Ala Matic Maxima Remocion 800 Ml.",
+   "marca": "ALA",
+   "ean": "7791290792012",
+   "precio": 4020.0,
+   "etiqueta": "otro producto",
+   "frase": "Ala Matic",
+   "nota": "jabón líquido para lavar ropa (línea Matic)",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Detergente|37",
+   "uid": "Detergente#2",
+   "cadena": "Día",
+   "item": "Detergente",
+   "titulo": "Jabón Liquido Para Lavar Ropa Granby Bicarbonato Baja Espuma De Limón 3 Lt.",
+   "marca": "GRANBY",
+   "ean": "7791290795129",
+   "precio": 8490.0,
+   "etiqueta": "otro producto",
+   "frase": "Para Lavar Ropa",
+   "nota": "jabón líquido para ropa",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Detergente|36",
+   "uid": "Detergente#3",
+   "cadena": "Día",
+   "item": "Detergente",
+   "titulo": "Jabón Liquido Para Lavar Ropa Granby Bicarbonato Baja Espuma De Limón 800 Ml.",
+   "marca": "GRANBY",
+   "ean": "7791290795112",
+   "precio": 3140.0,
+   "etiqueta": "otro producto",
+   "frase": "Para Lavar Ropa",
+   "nota": "jabón líquido para ropa",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Detergente|35",
+   "uid": "Detergente#4",
+   "cadena": "Día",
+   "item": "Detergente",
+   "titulo": "Jabón Liquido Ropa Rosas Gramby 800 Ml.",
+   "marca": "GRANBY",
+   "ean": "7791290795143",
+   "precio": 3140.0,
+   "etiqueta": "otro producto",
+   "frase": "Jabón Liquido Ropa",
+   "nota": "jabón líquido para ropa",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Detergente|40",
+   "uid": "Detergente#5",
+   "cadena": "Día",
+   "item": "Detergente",
+   "titulo": "Lavavajilla Bioactive Lima Cif 750 Ml.",
+   "marca": "CIF",
+   "ean": "7791290794122",
+   "precio": 3930.0,
+   "etiqueta": "correcto",
+   "frase": "Lavavajilla",
+   "nota": "lavavajillas líquido a mano, variante Bioactive lima",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Día|Detergente|38",
+   "uid": "Detergente#6",
+   "cadena": "Día",
+   "item": "Detergente",
+   "titulo": "Lavavajilla Cremoso DIA con Glicerina 750 Ml.",
+   "marca": "DIA",
+   "ean": "8480017069986",
+   "precio": 1390.0,
+   "etiqueta": "correcto",
+   "frase": "Lavavajilla Cremoso",
+   "nota": "lavavajillas a mano, variante cremoso con glicerina",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Fideos spaghetti|15",
+   "uid": "Fideos spaghetti#0",
+   "cadena": "Carrefour",
+   "item": "Fideos spaghetti",
+   "titulo": "Fideos spaghettini Barilla n3 500 g.",
+   "marca": "Barilla",
+   "ean": "8076800195033",
+   "precio": 8399.0,
+   "etiqueta": "correcto",
+   "frase": "Fideos spaghettini",
+   "nota": "spaghettini: spaghetti seco mas fino, misma forma",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Chango Más|Fideos spaghetti|16",
+   "uid": "Fideos spaghetti#0",
+   "cadena": "Chango Más",
+   "item": "Fideos spaghetti",
+   "titulo": "Fideos Spaghettini Barilla N3 500 G.",
+   "marca": "Barilla",
+   "ean": "8076800195033",
+   "precio": 8469.0,
+   "etiqueta": "correcto",
+   "frase": "Fideos spaghettini",
+   "nota": "spaghettini: spaghetti seco mas fino, misma forma",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Vea|Fideos spaghetti|9",
+   "uid": "Fideos spaghetti#1",
+   "cadena": "Vea",
+   "item": "Fideos spaghetti",
+   "titulo": "Fideos Spaghettini Integral 500 Grs Matarazzo",
+   "marca": "MATARAZZO",
+   "ean": "7790070335975",
+   "precio": 2099.0,
+   "etiqueta": "dudoso",
+   "frase": "Integral",
+   "nota": "\"Fideos Spaghettini Integral 500 Grs Matarazzo\": es spaghetti seco, pero el criterio manda los integrales a la columna dudoso, así que queda dudoso sin resolver.",
+   "evidencia_extra": "",
+   "fuente": "adjudicado",
+   "pasadas": {
+    "A": "dudoso",
+    "B": "dudoso"
+   }
+  },
+  {
+   "cid": "Vea|Fideos spaghetti|11",
+   "uid": "Fideos spaghetti#2",
+   "cadena": "Vea",
+   "item": "Fideos spaghetti",
+   "titulo": "Fideos Spaghettis Sabor Espinaca 500 Grs Rina",
+   "marca": "RINA",
+   "ean": "7790070336675",
+   "precio": 3190.0,
+   "etiqueta": "dudoso",
+   "frase": "Sabor Espinaca",
+   "nota": "\"Fideos Spaghettis Sabor Espinaca 500 Grs Rina\": forma spaghetti y seco, pero saborizado con verdura (espinaca), caso que el criterio ubica en dudoso.",
+   "evidencia_extra": "",
+   "fuente": "adjudicado",
+   "pasadas": {
+    "A": "dudoso",
+    "B": "dudoso"
+   }
+  },
+  {
+   "cid": "Vea|Fideos spaghetti|10",
+   "uid": "Fideos spaghetti#3",
+   "cadena": "Vea",
+   "item": "Fideos spaghetti",
+   "titulo": "Fideos Spaghettis Sabor Morrón 500 Grs Rina",
+   "marca": "RINA",
+   "ean": "7790070336668",
+   "precio": 3499.0,
+   "etiqueta": "dudoso",
+   "frase": "Sabor Morrón",
+   "nota": "\"Fideos Spaghettis Sabor Morrón 500 Grs Rina\": mismo caso que la espinaca, el morrón es verdura y el criterio pone las de verdura en dudoso.",
+   "evidencia_extra": "",
+   "fuente": "adjudicado",
+   "pasadas": {
+    "A": "dudoso",
+    "B": "dudoso"
+   }
+  },
+  {
+   "cid": "Carrefour|Fideos spaghetti|18",
+   "uid": "Fideos spaghetti#4",
+   "cadena": "Carrefour",
+   "item": "Fideos spaghetti",
+   "titulo": "Fideos spaghettoni Barilla n7 500 g.",
+   "marca": "Barilla",
+   "ean": "8076808150072",
+   "precio": 8399.0,
+   "etiqueta": "correcto",
+   "frase": "Fideos spaghettoni",
+   "nota": "spaghettoni: spaghetti seco mas grueso, misma forma",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Día|Fideos spaghetti|6",
+   "uid": "Fideos spaghetti#5",
+   "cadena": "Día",
+   "item": "Fideos spaghetti",
+   "titulo": "Spaghetti Rina Matarazzo 500 Gr.",
+   "marca": "MATARAZZO",
+   "ean": "7790070336651",
+   "precio": 3000.0,
+   "etiqueta": "correcto",
+   "frase": "Spaghetti",
+   "nota": "spaghetti seco comun",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Día|Gaseosa cola|40",
+   "uid": "Gaseosa cola#0",
+   "cadena": "Día",
+   "item": "Gaseosa cola",
+   "titulo": "Combo Gaseosas Coca Cola Zero 1,75Lt & Lima Limon Sprite 1,75 Lt.",
+   "marca": "COKE/COCACOLA",
+   "ean": "7790895650048",
+   "precio": 7500.0,
+   "etiqueta": "otro producto",
+   "frase": "Lima Limon Sprite 1,75 Lt.",
+   "nota": "Combo mixto: 1,75 L de cola zero + 1,75 L de Sprite lima limon. La mitad del contenido es un sabor que el criterio manda a \"otro producto\"; la regla del pack aplica a packs del mismo producto, no a un combo de dos sabores. Tomarlo como cola inflaria el volumen (3,5 L en vez de 1,75 L) y abarataria falsamente el precio por unidad. El criterio no lista casos dudosos y el titulo alcanza para decidir.",
+   "evidencia_extra": "",
+   "fuente": "adjudicado",
+   "pasadas": {
+    "A": "dudoso",
+    "B": "dudoso"
+   }
+  },
+  {
+   "cid": "Vea|Gaseosa cola|27",
+   "uid": "Gaseosa cola#1",
+   "cadena": "Vea",
+   "item": "Gaseosa cola",
+   "titulo": "Gaseosa Pepsi Black Lata 354 Ml",
+   "marca": "PEPSI",
+   "ean": "7791813828372",
+   "precio": 2190.0,
+   "etiqueta": "correcto",
+   "frase": "Gaseosa Pepsi Black",
+   "nota": "Pepsi Black es cola sin azucar; lata 354 ml",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Día|Gaseosa cola|41",
+   "uid": "Gaseosa cola#2",
+   "cadena": "Día",
+   "item": "Gaseosa cola",
+   "titulo": "Gaseosa Schweppes Pomelo Zero 2.25 Lt.",
+   "marca": "SCHWEPPES",
+   "ean": "7790895010095",
+   "precio": 5900.0,
+   "etiqueta": "otro producto",
+   "frase": "Schweppes Pomelo Zero",
+   "nota": "Sabor pomelo, no cola",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Gaseosa cola|39",
+   "uid": "Gaseosa cola#3",
+   "cadena": "Día",
+   "item": "Gaseosa cola",
+   "titulo": "Gaseosa Schweppes Tónica 1.5 Lt.",
+   "marca": "SCHWEPPES",
+   "ean": "7790895006715",
+   "precio": 4750.0,
+   "etiqueta": "otro producto",
+   "frase": "Schweppes Tónica",
+   "nota": "Agua tonica, no cola",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Gaseosa cola|30",
+   "uid": "Gaseosa cola#4",
+   "cadena": "Carrefour",
+   "item": "Gaseosa cola",
+   "titulo": "Gaseosa Schweppes Tónica 354 ml",
+   "marca": "Schweppes",
+   "ean": "7790895006821",
+   "precio": 2300.0,
+   "etiqueta": "otro producto",
+   "frase": "Schweppes Tónica",
+   "nota": "Agua tonica, no cola",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Gaseosa cola|38",
+   "uid": "Gaseosa cola#5",
+   "cadena": "Día",
+   "item": "Gaseosa cola",
+   "titulo": "Gaseosa Schweppes Tónica 354 Ml.",
+   "marca": "SCHWEPPES",
+   "ean": "7790895006821",
+   "precio": 1690.0,
+   "etiqueta": "otro producto",
+   "frase": "Schweppes Tónica",
+   "nota": "Agua tonica, no cola",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Gaseosa cola|32",
+   "uid": "Gaseosa cola#6",
+   "cadena": "Carrefour",
+   "item": "Gaseosa cola",
+   "titulo": "Gaseosa Schweppes Zero Agua Tónica 1,5 lts",
+   "marca": "Schweppes",
+   "ean": "7790895648014",
+   "precio": 4500.0,
+   "etiqueta": "otro producto",
+   "frase": "Zero Agua Tónica",
+   "nota": "Agua tonica, no cola",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Gaseosa cola|44",
+   "uid": "Gaseosa cola#7",
+   "cadena": "Día",
+   "item": "Gaseosa cola",
+   "titulo": "Gaseosa Schweppes Zero Pomelo 1,5 Lt.",
+   "marca": "SCHWEPPES",
+   "ean": "7790895010088",
+   "precio": 4750.0,
+   "etiqueta": "otro producto",
+   "frase": "Zero Pomelo",
+   "nota": "Sabor pomelo, no cola",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Gaseosa cola|31",
+   "uid": "Gaseosa cola#8",
+   "cadena": "Carrefour",
+   "item": "Gaseosa cola",
+   "titulo": "Gaseosa Schweppes Zero Pomelo 354 ml",
+   "marca": "Schweppes",
+   "ean": "7790895010101",
+   "precio": 2600.0,
+   "etiqueta": "otro producto",
+   "frase": "Zero Pomelo",
+   "nota": "Sabor pomelo, no cola",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Gaseosa cola|42",
+   "uid": "Gaseosa cola#9",
+   "cadena": "Día",
+   "item": "Gaseosa cola",
+   "titulo": "Gaseosa Schweppes Zero Pomelo 354 Ml.",
+   "marca": "SCHWEPPES",
+   "ean": "7790895010101",
+   "precio": 1690.0,
+   "etiqueta": "otro producto",
+   "frase": "Zero Pomelo",
+   "nota": "Sabor pomelo, no cola",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Gaseosa cola|43",
+   "uid": "Gaseosa cola#10",
+   "cadena": "Día",
+   "item": "Gaseosa cola",
+   "titulo": "Gaseosa Schweppes Zero Pomelo Retornable 2 Lt.",
+   "marca": "SCHWEPPES",
+   "ean": "7790895011511",
+   "precio": 4150.0,
+   "etiqueta": "otro producto",
+   "frase": "Zero Pomelo Retornable",
+   "nota": "Sabor pomelo, no cola",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Vea|Harina 000|10",
+   "uid": "Harina 000#0",
+   "cadena": "Vea",
+   "item": "Harina 000",
+   "titulo": "Harina 0000 1 Kg Caserita",
+   "marca": "CASERITA",
+   "ean": "7792590000227",
+   "precio": 1290.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina 0000",
+   "nota": "el criterio pone 0000 en otro producto",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Vea|Harina 000|8",
+   "uid": "Harina 000#1",
+   "cadena": "Vea",
+   "item": "Harina 000",
+   "titulo": "Harina 0000 1 Kg Favorita",
+   "marca": "FAVORITA",
+   "ean": "7790070562265",
+   "precio": 1390.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina 0000",
+   "nota": "0000",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Vea|Harina 000|9",
+   "uid": "Harina 000#2",
+   "cadena": "Vea",
+   "item": "Harina 000",
+   "titulo": "Harina 0000 1 Kg Maxima",
+   "marca": "MAXIMA",
+   "ean": "7792052097130",
+   "precio": 1090.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina 0000",
+   "nota": "0000",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Vea|Harina 000|7",
+   "uid": "Harina 000#3",
+   "cadena": "Vea",
+   "item": "Harina 000",
+   "titulo": "Harina 0000 1 Kg Morixe",
+   "marca": "MORIXE",
+   "ean": "7790199000020",
+   "precio": 1290.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina 0000",
+   "nota": "0000",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Harina 000|7",
+   "uid": "Harina 000#4",
+   "cadena": "Carrefour",
+   "item": "Harina 000",
+   "titulo": "Harina 0000 Carrefour Classic 1 kg",
+   "marca": "Carrefour",
+   "ean": "7792180144041",
+   "precio": 1341.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina 0000",
+   "nota": "0000",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Harina 000|8",
+   "uid": "Harina 000#5",
+   "cadena": "Día",
+   "item": "Harina 000",
+   "titulo": "Harina 0000 Caserita 1 Kg.",
+   "marca": "CASERITA",
+   "ean": "7792590000227",
+   "precio": 1307.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina 0000",
+   "nota": "0000",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Chango Más|Harina 000|7",
+   "uid": "Harina 000#6",
+   "cadena": "Chango Más",
+   "item": "Harina 000",
+   "titulo": "Harina 0000 Chacabuco 1 Kg",
+   "marca": "Chacabuco",
+   "ean": "7799037060028",
+   "precio": 1399.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina 0000",
+   "nota": "0000",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Chango Más|Harina 000|8",
+   "uid": "Harina 000#7",
+   "cadena": "Chango Más",
+   "item": "Harina 000",
+   "titulo": "Harina 0000 Check 1 Kg",
+   "marca": "Check",
+   "ean": "7798153719230",
+   "precio": 1209.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina 0000",
+   "nota": "0000",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Harina 000|10",
+   "uid": "Harina 000#8",
+   "cadena": "Día",
+   "item": "Harina 000",
+   "titulo": "Harina 0000 con Vitaminas Favorita 1 Kg.",
+   "marca": "FAVORITA",
+   "ean": "7790070562265",
+   "precio": 1640.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina 0000 con Vitaminas",
+   "nota": "0000 fortificada",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Harina 000|7",
+   "uid": "Harina 000#9",
+   "cadena": "Día",
+   "item": "Harina 000",
+   "titulo": "Harina 0000 Morixe 1 Kg.",
+   "marca": "MORIXE",
+   "ean": "7790199000020",
+   "precio": 1165.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina 0000",
+   "nota": "0000",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Chango Más|Harina 000|9",
+   "uid": "Harina 000#10",
+   "cadena": "Chango Más",
+   "item": "Harina 000",
+   "titulo": "Harina 0000 Morixe X 1 Kg",
+   "marca": "Morixe",
+   "ean": "7790199000020",
+   "precio": 1699.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina 0000",
+   "nota": "0000",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Vea|Harina 000|12",
+   "uid": "Harina 000#11",
+   "cadena": "Vea",
+   "item": "Harina 000",
+   "titulo": "Harina 0000 para Pizza 1 Kg Caserita",
+   "marca": "CASERITA",
+   "ean": "7792590001156",
+   "precio": 1490.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina 0000 para Pizza",
+   "nota": "0000",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Chango Más|Harina 000|10",
+   "uid": "Harina 000#12",
+   "cadena": "Chango Más",
+   "item": "Harina 000",
+   "titulo": "Harina 0000 Pureza Ultra Refinada 1 Kg",
+   "marca": "Pureza",
+   "ean": "7792180004871",
+   "precio": 1299.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina 0000",
+   "nota": "0000",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Harina 000|9",
+   "uid": "Harina 000#13",
+   "cadena": "Día",
+   "item": "Harina 000",
+   "titulo": "Harina 0000 Pureza Ultra Refinada 1 Kg.",
+   "marca": "PUREZA",
+   "ean": "7792180004871",
+   "precio": 1590.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina 0000",
+   "nota": "0000",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Vea|Harina 000|13",
+   "uid": "Harina 000#14",
+   "cadena": "Vea",
+   "item": "Harina 000",
+   "titulo": "Harina Cañuelas Ultra Refinada Vitamina D 1kg",
+   "marca": "CAÑUELAS",
+   "ean": "7792180139320",
+   "precio": 890.0,
+   "etiqueta": "dudoso",
+   "frase": "Harina Cañuelas Ultra Refinada Vitamina D",
+   "nota": "Único título del lote sin el tipo explícito: no dice 000 ni 0000, así que no se puede afirmar que sea 000 ni descartarlo. 'Ultra Refinada' es indicio de 0000 (en este mismo lote aparece solo en 'Harina 0000 Pureza Ultra Refinada', #12 y #13) pero es inferencia de marketing, no dato del título; 'Vitamina D' es fortificación y no distingue tipo. Sin evidencia extra (foto/ficha del envase) queda dudoso.",
+   "evidencia_extra": "",
+   "fuente": "adjudicado",
+   "pasadas": {
+    "A": "dudoso",
+    "B": "dudoso"
+   }
+  },
+  {
+   "cid": "Chango Más|Harina 000|11",
+   "uid": "Harina 000#15",
+   "cadena": "Chango Más",
+   "item": "Harina 000",
+   "titulo": "Harina De Trigo 0000 Aliada 1kg",
+   "marca": "Aliada",
+   "ean": "7798029630997",
+   "precio": 1209.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina De Trigo 0000",
+   "nota": "0000",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Harina 000|12",
+   "uid": "Harina 000#16",
+   "cadena": "Carrefour",
+   "item": "Harina 000",
+   "titulo": "Harina de trigo 0000 Bulnez 1 kg.",
+   "marca": "Bulnez",
+   "ean": "7791720036679",
+   "precio": 1050.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina de trigo 0000",
+   "nota": "0000",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Harina 000|8",
+   "uid": "Harina 000#17",
+   "cadena": "Carrefour",
+   "item": "Harina 000",
+   "titulo": "Harina de trigo 0000 Caserita 1 kg.",
+   "marca": "Caserita",
+   "ean": "7792590000227",
+   "precio": 1500.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina de trigo 0000",
+   "nota": "0000",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Harina 000|10",
+   "uid": "Harina 000#18",
+   "cadena": "Carrefour",
+   "item": "Harina 000",
+   "titulo": "Harina de trigo 0000 Chacabuco 1 kg.",
+   "marca": "Chacabuco",
+   "ean": "7799037060028",
+   "precio": 1369.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina de trigo 0000",
+   "nota": "0000",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Harina 000|11",
+   "uid": "Harina 000#19",
+   "cadena": "Día",
+   "item": "Harina 000",
+   "titulo": "Harina de Trigo 0000 DIA 1 Kg.",
+   "marca": "DIA",
+   "ean": "8480017242730",
+   "precio": 1100.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina de Trigo 0000",
+   "nota": "0000",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Harina 000|13",
+   "uid": "Harina 000#20",
+   "cadena": "Carrefour",
+   "item": "Harina 000",
+   "titulo": "Harina de trigo 0000 Favorita fortificada 1 kg.",
+   "marca": "Favorita",
+   "ean": "7790070562265",
+   "precio": 1639.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina de trigo 0000",
+   "nota": "0000 fortificada",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Harina 000|12",
+   "uid": "Harina 000#21",
+   "cadena": "Día",
+   "item": "Harina 000",
+   "titulo": "Harina De Trigo 0000 Masa Madre Para Pizza Pureza 1 Kg.",
+   "marca": "PUREZA",
+   "ean": "7792180141941",
+   "precio": 2670.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina De Trigo 0000",
+   "nota": "0000 masa madre para pizza",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Harina 000|15",
+   "uid": "Harina 000#22",
+   "cadena": "Carrefour",
+   "item": "Harina 000",
+   "titulo": "Harina de trigo Bárbara 000 x 1 kg",
+   "marca": "Larios",
+   "ean": "7794270035512",
+   "precio": 1169.0,
+   "etiqueta": "correcto",
+   "frase": "Harina de trigo Bárbara 000",
+   "nota": "unica 000 del lote; marca Larios",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Chango Más|Harina 000|13",
+   "uid": "Harina 000#23",
+   "cadena": "Chango Más",
+   "item": "Harina 000",
+   "titulo": "Harina De Trigo Caserita Tipo 0000 1 Kg",
+   "marca": "Caserita",
+   "ean": "7792590000227",
+   "precio": 1509.0,
+   "etiqueta": "otro producto",
+   "frase": "Tipo 0000",
+   "nota": "0000",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Chango Más|Harina 000|12",
+   "uid": "Harina 000#24",
+   "cadena": "Chango Más",
+   "item": "Harina 000",
+   "titulo": "Harina De Trigo Favorita 0000 1 Kg",
+   "marca": "Favorita",
+   "ean": "7790070562265",
+   "precio": 1869.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina De Trigo Favorita 0000",
+   "nota": "0000",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Harina 000|9",
+   "uid": "Harina 000#25",
+   "cadena": "Carrefour",
+   "item": "Harina 000",
+   "titulo": "Harina de trigo Morixe 0000 1 kg.",
+   "marca": "Morixe",
+   "ean": "7790199000020",
+   "precio": 1509.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina de trigo Morixe 0000",
+   "nota": "0000",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Harina 000|11",
+   "uid": "Harina 000#26",
+   "cadena": "Carrefour",
+   "item": "Harina 000",
+   "titulo": "Harina de trigo Pureza 0000 1 kg.",
+   "marca": "Pureza",
+   "ean": "7792180004871",
+   "precio": 1590.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina de trigo Pureza 0000",
+   "nota": "0000",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Harina 000|16",
+   "uid": "Harina 000#27",
+   "cadena": "Carrefour",
+   "item": "Harina 000",
+   "titulo": "Harina de trigo Tassara tipo 0000 x 1 kg",
+   "marca": "Tassara",
+   "ean": "7792612000716",
+   "precio": 1270.0,
+   "etiqueta": "otro producto",
+   "frase": "tipo 0000",
+   "nota": "0000",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Vea|Harina 000|11",
+   "uid": "Harina 000#28",
+   "cadena": "Vea",
+   "item": "Harina 000",
+   "titulo": "Harina Leudante 0000 1 Kg Pureza",
+   "marca": "PUREZA",
+   "ean": "7792180140708",
+   "precio": 1690.0,
+   "etiqueta": "otro producto",
+   "frase": "Harina Leudante 0000",
+   "nota": "leudante y 0000: doble motivo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Jabón polvo|15",
+   "uid": "Jabón polvo#0",
+   "cadena": "Carrefour",
+   "item": "Jabón polvo",
+   "titulo": "Detergente en polvo Ace clásico alta espuma 400 grs",
+   "marca": "Ace",
+   "ean": "7790990002933",
+   "precio": 1779.0,
+   "etiqueta": "correcto",
+   "frase": "Detergente en polvo",
+   "nota": "Ace es jabón en polvo para ropa; variante alta espuma",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Jabón polvo|14",
+   "uid": "Jabón polvo#1",
+   "cadena": "Carrefour",
+   "item": "Jabón polvo",
+   "titulo": "Detergente en polvo Ace clásico baja espuma 400 grs",
+   "marca": "Ace",
+   "ean": "7790990002919",
+   "precio": 1779.0,
+   "etiqueta": "correcto",
+   "frase": "Detergente en polvo",
+   "nota": "variante baja espuma",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Vea|Jabón polvo|9",
+   "uid": "Jabón polvo#2",
+   "cadena": "Vea",
+   "item": "Jabón polvo",
+   "titulo": "Detergente Polvo Zorro Clásico X 800g",
+   "marca": "ZORRO",
+   "ean": "7790990002261",
+   "precio": 2990.0,
+   "etiqueta": "correcto",
+   "frase": "Detergente Polvo",
+   "nota": "Zorro, polvo para ropa",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Jabón polvo|17",
+   "uid": "Jabón polvo#3",
+   "cadena": "Carrefour",
+   "item": "Jabón polvo",
+   "titulo": "Jabon líquido Ace clásico Doypack 3 lts",
+   "marca": "Ace",
+   "ean": "7790990002988",
+   "precio": 12829.0,
+   "etiqueta": "otro producto",
+   "frase": "Jabon líquido",
+   "nota": "el criterio pone el jabón líquido para ropa en otro producto",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Jabón polvo|18",
+   "uid": "Jabón polvo#4",
+   "cadena": "Carrefour",
+   "item": "Jabón polvo",
+   "titulo": "Jabon líquido Ace clásico Doypack 800 ml",
+   "marca": "Ace",
+   "ean": "7790990002964",
+   "precio": 3890.0,
+   "etiqueta": "otro producto",
+   "frase": "Jabon líquido",
+   "nota": "líquido, no polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Jabón polvo|16",
+   "uid": "Jabón polvo#5",
+   "cadena": "Carrefour",
+   "item": "Jabón polvo",
+   "titulo": "Jabón concentrado Ace clásico botella 500 ml",
+   "marca": "Ace",
+   "ean": "7790990002858",
+   "precio": 10159.0,
+   "etiqueta": "otro producto",
+   "frase": "Jabón concentrado Ace clásico botella 500 ml",
+   "nota": "botella de 500 ml: es líquido concentrado para ropa, no polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Vea|Leche entera|15",
+   "uid": "Leche entera#0",
+   "cadena": "Vea",
+   "item": "Leche entera",
+   "titulo": "Barra de Chocolate Sabor Leche y Almendras Enteras 140 Grs Cofler",
+   "marca": "COFLER",
+   "ean": "7790580128234",
+   "precio": 9290.0,
+   "etiqueta": "otro producto",
+   "frase": "Barra de Chocolate Sabor Leche",
+   "nota": "golosina, no leche",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Leche entera|23",
+   "uid": "Leche entera#1",
+   "cadena": "Carrefour",
+   "item": "Leche entera",
+   "titulo": "Crema de leche Carrefour Classic 200 ml",
+   "marca": "Carrefour",
+   "ean": "7798159713621",
+   "precio": 2137.5,
+   "etiqueta": "otro producto",
+   "frase": "Crema de leche",
+   "nota": "crema, no leche fluida",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Leche entera|25",
+   "uid": "Leche entera#2",
+   "cadena": "Carrefour",
+   "item": "Leche entera",
+   "titulo": "Crema de leche Milkaut en pote 200 cc.",
+   "marca": "Milkaut",
+   "ean": "7794820902974",
+   "precio": 3670.0,
+   "etiqueta": "otro producto",
+   "frase": "Crema de leche",
+   "nota": "crema",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Leche entera|24",
+   "uid": "Leche entera#3",
+   "cadena": "Carrefour",
+   "item": "Leche entera",
+   "titulo": "Crema de leche Milkaut en pote 330 cc.",
+   "marca": "Milkaut",
+   "ean": "7794820902967",
+   "precio": 5785.0,
+   "etiqueta": "otro producto",
+   "frase": "Crema de leche",
+   "nota": "crema",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Leche entera|28",
+   "uid": "Leche entera#4",
+   "cadena": "Carrefour",
+   "item": "Leche entera",
+   "titulo": "Crema La serenisima larga vida 200 cc.",
+   "marca": "La Serenísima",
+   "ean": "7790742141309",
+   "precio": 3305.0,
+   "etiqueta": "otro producto",
+   "frase": "Crema",
+   "nota": "crema larga vida",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Leche entera|27",
+   "uid": "Leche entera#5",
+   "cadena": "Carrefour",
+   "item": "Leche entera",
+   "titulo": "Crema Tonadita tradicional 200 cc.",
+   "marca": "Tonadita",
+   "ean": "7798060850095",
+   "precio": 2379.0,
+   "etiqueta": "otro producto",
+   "frase": "Crema",
+   "nota": "crema",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Leche entera|29",
+   "uid": "Leche entera#6",
+   "cadena": "Carrefour",
+   "item": "Leche entera",
+   "titulo": "Crema Tonadita tradicional 350 cc.",
+   "marca": "Tonadita",
+   "ean": "7798060850101",
+   "precio": 3799.0,
+   "etiqueta": "otro producto",
+   "frase": "Crema",
+   "nota": "crema",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Leche entera|26",
+   "uid": "Leche entera#7",
+   "cadena": "Carrefour",
+   "item": "Leche entera",
+   "titulo": "La Lechera Nutrifuerza 800 grs",
+   "marca": "La Lechera",
+   "ean": "8445290702234",
+   "precio": 9749.25,
+   "etiqueta": "otro producto",
+   "frase": "La Lechera Nutrifuerza 800 grs",
+   "nota": "leche en polvo fortificada (se vende por gramos)",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Leche entera|20",
+   "uid": "Leche entera#8",
+   "cadena": "Carrefour",
+   "item": "Leche entera",
+   "titulo": "Leche clásica UAT Bulnez 1 lt",
+   "marca": "Bulnez",
+   "ean": "7791720049686",
+   "precio": 1890.0,
+   "etiqueta": "correcto",
+   "frase": "Leche clásica UAT",
+   "nota": "fluida larga vida 1 lt; 'clásica' = entera",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Chango Más|Leche entera|16",
+   "uid": "Leche entera#9",
+   "cadena": "Chango Más",
+   "item": "Leche entera",
+   "titulo": "Leche En Polvo Apostoles Entera 800 G",
+   "marca": "Apostoles",
+   "ean": "7798338291667",
+   "precio": 9899.0,
+   "etiqueta": "otro producto",
+   "frase": "Leche En Polvo",
+   "nota": "en polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Chango Más|Leche entera|18",
+   "uid": "Leche entera#10",
+   "cadena": "Chango Más",
+   "item": "Leche entera",
+   "titulo": "Leche En Polvo Check Entera Instantánea 800 G",
+   "marca": "Check",
+   "ean": "7798270249658",
+   "precio": 12329.0,
+   "etiqueta": "otro producto",
+   "frase": "Leche En Polvo",
+   "nota": "en polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Vea|Leche entera|13",
+   "uid": "Leche entera#11",
+   "cadena": "Vea",
+   "item": "Leche entera",
+   "titulo": "Leche en Polvo Entera 0 Lactosa 400 Grs Purisima",
+   "marca": "PURISIMA",
+   "ean": "7798095172667",
+   "precio": 8390.0,
+   "etiqueta": "otro producto",
+   "frase": "Leche en Polvo",
+   "nota": "en polvo, aunque sea 0 lactosa",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Vea|Leche entera|11",
+   "uid": "Leche entera#12",
+   "cadena": "Vea",
+   "item": "Leche entera",
+   "titulo": "Leche en Polvo Entera 400 Grs Cuisine y Co",
+   "marca": "Cuisine & CO",
+   "ean": "7792052180924",
+   "precio": 6290.0,
+   "etiqueta": "otro producto",
+   "frase": "Leche en Polvo",
+   "nota": "en polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Vea|Leche entera|14",
+   "uid": "Leche entera#13",
+   "cadena": "Vea",
+   "item": "Leche entera",
+   "titulo": "Leche en Polvo Entera 800 Grs Cuisine y Co",
+   "marca": "Cuisine & CO",
+   "ean": "7792052180931",
+   "precio": 10890.0,
+   "etiqueta": "otro producto",
+   "frase": "Leche en Polvo",
+   "nota": "en polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Leche entera|17",
+   "uid": "Leche entera#14",
+   "cadena": "Carrefour",
+   "item": "Leche entera",
+   "titulo": "Leche en polvo entera Carrefour classic pouch 125 g.",
+   "marca": "Carrefour",
+   "ean": "7791720031711",
+   "precio": 2036.7,
+   "etiqueta": "otro producto",
+   "frase": "Leche en polvo",
+   "nota": "en polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Leche entera|16",
+   "uid": "Leche entera#15",
+   "cadena": "Carrefour",
+   "item": "Leche entera",
+   "titulo": "Leche en polvo entera Carrefour classic pouch 250 g.",
+   "marca": "Carrefour",
+   "ean": "7791720031728",
+   "precio": 3645.3,
+   "etiqueta": "otro producto",
+   "frase": "Leche en polvo",
+   "nota": "en polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Leche entera|14",
+   "uid": "Leche entera#16",
+   "cadena": "Carrefour",
+   "item": "Leche entera",
+   "titulo": "Leche en polvo entera Carrefour classic pouch 400 g.",
+   "marca": "Carrefour",
+   "ean": "7791720031773",
+   "precio": 5447.2,
+   "etiqueta": "otro producto",
+   "frase": "Leche en polvo",
+   "nota": "en polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Chango Más|Leche entera|13",
+   "uid": "Leche entera#17",
+   "cadena": "Chango Más",
+   "item": "Leche entera",
+   "titulo": "Leche En Polvo Entera Formidable Pouch 800 Gr",
+   "marca": "Formidable",
+   "ean": "7798095171059",
+   "precio": 7699.0,
+   "etiqueta": "otro producto",
+   "frase": "Leche En Polvo",
+   "nota": "en polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Vea|Leche entera|12",
+   "uid": "Leche entera#18",
+   "cadena": "Vea",
+   "item": "Leche entera",
+   "titulo": "Leche en Polvo Entera Instantánea Plus 800 Grs Purisima",
+   "marca": "PURISIMA",
+   "ean": "7798095171363",
+   "precio": 12290.0,
+   "etiqueta": "otro producto",
+   "frase": "Leche en Polvo",
+   "nota": "en polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Leche entera|15",
+   "uid": "Leche entera#19",
+   "cadena": "Carrefour",
+   "item": "Leche entera",
+   "titulo": "Leche en polvo entera La Serenísima bolsa 200 g.",
+   "marca": "La Serenísima",
+   "ean": "7790742436108",
+   "precio": 3745.0,
+   "etiqueta": "otro producto",
+   "frase": "Leche en polvo",
+   "nota": "en polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Chango Más|Leche entera|15",
+   "uid": "Leche entera#20",
+   "cadena": "Chango Más",
+   "item": "Leche entera",
+   "titulo": "Leche En Polvo Entera Purisima 400 Gr",
+   "marca": "Ilolay",
+   "ean": "7798095170823",
+   "precio": 4716.75,
+   "etiqueta": "otro producto",
+   "frase": "Leche En Polvo",
+   "nota": "en polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Leche entera|10",
+   "uid": "Leche entera#21",
+   "cadena": "Carrefour",
+   "item": "Leche entera",
+   "titulo": "Leche en polvo entera Purísima 400 g.",
+   "marca": "Purísima",
+   "ean": "7798095170823",
+   "precio": 6500.0,
+   "etiqueta": "otro producto",
+   "frase": "Leche en polvo",
+   "nota": "en polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Leche entera|11",
+   "uid": "Leche entera#22",
+   "cadena": "Carrefour",
+   "item": "Leche entera",
+   "titulo": "Leche en polvo entera Purísima plus 800 g.",
+   "marca": "Purísima",
+   "ean": "7798095171363",
+   "precio": 12300.0,
+   "etiqueta": "otro producto",
+   "frase": "Leche en polvo",
+   "nota": "en polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Chango Más|Leche entera|19",
+   "uid": "Leche entera#23",
+   "cadena": "Chango Más",
+   "item": "Leche entera",
+   "titulo": "Leche En Polvo La Paulina Entera 800 G",
+   "marca": "La Paulina",
+   "ean": "7790398100644",
+   "precio": 16779.0,
+   "etiqueta": "otro producto",
+   "frase": "Leche En Polvo",
+   "nota": "en polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Chango Más|Leche entera|11",
+   "uid": "Leche entera#24",
+   "cadena": "Chango Más",
+   "item": "Leche entera",
+   "titulo": "Leche En Polvo La Serenisima Entera 200 G",
+   "marca": "La Serenísima",
+   "ean": "7790742436108",
+   "precio": 4199.0,
+   "etiqueta": "otro producto",
+   "frase": "Leche En Polvo",
+   "nota": "en polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Chango Más|Leche entera|12",
+   "uid": "Leche entera#25",
+   "cadena": "Chango Más",
+   "item": "Leche entera",
+   "titulo": "Leche En Polvo La Serenisima Entera 400 G",
+   "marca": "La Serenísima",
+   "ean": "7790742436306",
+   "precio": 7439.0,
+   "etiqueta": "otro producto",
+   "frase": "Leche En Polvo",
+   "nota": "en polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Leche entera|12",
+   "uid": "Leche entera#26",
+   "cadena": "Carrefour",
+   "item": "Leche entera",
+   "titulo": "Leche en Polvo La Serenisima Entera 800 grs",
+   "marca": "La Serenísima",
+   "ean": "7790742437303",
+   "precio": 13605.0,
+   "etiqueta": "otro producto",
+   "frase": "Leche en Polvo",
+   "nota": "en polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Chango Más|Leche entera|17",
+   "uid": "Leche entera#27",
+   "cadena": "Chango Más",
+   "item": "Leche entera",
+   "titulo": "Leche En Polvo La Serenisima Entera Zero 400g",
+   "marca": "La Serenísima",
+   "ean": "7790742436504",
+   "precio": 10199.0,
+   "etiqueta": "otro producto",
+   "frase": "Leche En Polvo",
+   "nota": "en polvo, Zero lactosa",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Leche entera|21",
+   "uid": "Leche entera#28",
+   "cadena": "Carrefour",
+   "item": "Leche entera",
+   "titulo": "Leche en Polvo La Serenisima Entera Zero Lactosa 400 grs",
+   "marca": "La Serenísima",
+   "ean": "7790742436504",
+   "precio": 9159.0,
+   "etiqueta": "otro producto",
+   "frase": "Leche en Polvo",
+   "nota": "en polvo, cero lactosa",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Leche entera|13",
+   "uid": "Leche entera#29",
+   "cadena": "Carrefour",
+   "item": "Leche entera",
+   "titulo": "Leche en polvo La serenísima entera 400 g.",
+   "marca": "La Serenísima",
+   "ean": "7790742436306",
+   "precio": 7149.0,
+   "etiqueta": "otro producto",
+   "frase": "Leche en polvo",
+   "nota": "en polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Chango Más|Leche entera|14",
+   "uid": "Leche entera#30",
+   "cadena": "Chango Más",
+   "item": "Leche entera",
+   "titulo": "Leche En Polvo Purisima Entera 200 G",
+   "marca": "Purisima",
+   "ean": "7798095171714",
+   "precio": 2511.75,
+   "etiqueta": "otro producto",
+   "frase": "Leche En Polvo",
+   "nota": "en polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Leche entera|5",
+   "uid": "Leche entera#31",
+   "cadena": "Día",
+   "item": "Leche entera",
+   "titulo": "Leche Entera en Polvo DIA 400 Gr.",
+   "marca": "DIA",
+   "ean": "8480017034595",
+   "precio": 6150.0,
+   "etiqueta": "otro producto",
+   "frase": "en Polvo",
+   "nota": "en polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Leche entera|1",
+   "uid": "Leche entera#32",
+   "cadena": "Día",
+   "item": "Leche entera",
+   "titulo": "Leche Entera en Polvo DIA 800 Gr.",
+   "marca": "DIA",
+   "ean": "8480017297013",
+   "precio": 12000.0,
+   "etiqueta": "otro producto",
+   "frase": "en Polvo",
+   "nota": "en polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Leche entera|22",
+   "uid": "Leche entera#33",
+   "cadena": "Carrefour",
+   "item": "Leche entera",
+   "titulo": "Leche La serenisima clásica 3% 1L",
+   "marca": "La Serenísima",
+   "ean": "7790742363008",
+   "precio": 2915.0,
+   "etiqueta": "correcto",
+   "frase": "Leche La serenisima clásica 3%",
+   "nota": "fluida entera 1L",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Día|Leche entera|11",
+   "uid": "Leche entera#34",
+   "cadena": "Día",
+   "item": "Leche entera",
+   "titulo": "Leche Larga Vida Clásica 3% La Serenisima 1 Lt.",
+   "marca": "LA SERENISIMA",
+   "ean": "7790742363008",
+   "precio": 2915.0,
+   "etiqueta": "correcto",
+   "frase": "Leche Larga Vida Clásica 3%",
+   "nota": "fluida entera larga vida",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Día|Leche entera|10",
+   "uid": "Leche entera#35",
+   "cadena": "Día",
+   "item": "Leche entera",
+   "titulo": "Leche Multidefensa 2% La Serenisima 1 Lt.",
+   "marca": "LA SERENISIMA",
+   "ean": "7790742348203",
+   "precio": 2050.0,
+   "etiqueta": "otro producto",
+   "frase": "Multidefensa 2%",
+   "nota": "2% = parcialmente descremada",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Leche entera|9",
+   "uid": "Leche entera#36",
+   "cadena": "Día",
+   "item": "Leche entera",
+   "titulo": "Leche Multidefensa 3% La Serenisima 1 Lt.",
+   "marca": "LA SERENISIMA",
+   "ean": "7790742348302",
+   "precio": 2050.0,
+   "etiqueta": "correcto",
+   "frase": "Multidefensa 3%",
+   "nota": "3% = entera fluida",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Leche entera|30",
+   "uid": "Leche entera#37",
+   "cadena": "Carrefour",
+   "item": "Leche entera",
+   "titulo": "Nido Orgánica 800 grs",
+   "marca": "Nido",
+   "ean": "8445291104440",
+   "precio": 17721.75,
+   "etiqueta": "otro producto",
+   "frase": "Nido Orgánica 800 grs",
+   "nota": "Nido es leche en polvo",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Manteca|20",
+   "uid": "Manteca#0",
+   "cadena": "Día",
+   "item": "Manteca",
+   "titulo": "Alimento Untable Manty 0% Grasas Trans 200 Gr.",
+   "marca": "MANTY",
+   "ean": "7791620187136",
+   "precio": 2390.0,
+   "etiqueta": "otro producto",
+   "frase": "Alimento Untable",
+   "nota": "Manty es untable tipo margarina, no manteca de leche",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Chango Más|Manteca|48",
+   "uid": "Manteca#1",
+   "cadena": "Chango Más",
+   "item": "Manteca",
+   "titulo": "Bagóvit Capilar Nutrición Profunda Acondicionador X 350 Ml",
+   "marca": "Bagovit",
+   "ean": "7790375269739",
+   "precio": 9099.0,
+   "etiqueta": "otro producto",
+   "frase": "Capilar Nutrición Profunda Acondicionador",
+   "nota": "cosmética capilar",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Chango Más|Manteca|49",
+   "uid": "Manteca#2",
+   "cadena": "Chango Más",
+   "item": "Manteca",
+   "titulo": "Bagóvit Capilar Nutrición Profunda Máscara X 300 Ml",
+   "marca": "Bagovit",
+   "ean": "7790375269760",
+   "precio": 9449.0,
+   "etiqueta": "otro producto",
+   "frase": "Capilar Nutrición Profunda Máscara",
+   "nota": "cosmética capilar",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Manteca|37",
+   "uid": "Manteca#3",
+   "cadena": "Carrefour",
+   "item": "Manteca",
+   "titulo": "Crema corporal Nivea Soft Milk 5 en 1 suavidad y humectación profunda piel seca  250 ml.",
+   "marca": "Nivea",
+   "ean": "4006000040417",
+   "precio": 6674.25,
+   "etiqueta": "otro producto",
+   "frase": "Crema corporal",
+   "nota": "cosmética; \"Soft Milk\" no es manteca",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Manteca|36",
+   "uid": "Manteca#4",
+   "cadena": "Carrefour",
+   "item": "Manteca",
+   "titulo": "Crema corporal Nivea Soft Milk 5 en 1 suavidad y humectación profunda piel seca 400 ml.",
+   "marca": "Nivea",
+   "ean": "4006000040424",
+   "precio": 9074.25,
+   "etiqueta": "otro producto",
+   "frase": "Crema corporal",
+   "nota": "cosmética",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Manteca|21",
+   "uid": "Manteca#5",
+   "cadena": "Día",
+   "item": "Manteca",
+   "titulo": "Crema Corporal Soft Milk 5 En 1 Suavidad Y Humectación Profunda Piel Seca Nivea X 250 Ml.",
+   "marca": "NIVEA",
+   "ean": "4006000040417",
+   "precio": 6667.17,
+   "etiqueta": "otro producto",
+   "frase": "Crema Corporal",
+   "nota": "cosmética",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Manteca|34",
+   "uid": "Manteca#6",
+   "cadena": "Carrefour",
+   "item": "Manteca",
+   "titulo": "Crema de manos Nivea cuidado intensivo para piel seca 100 ml",
+   "marca": "Nivea",
+   "ean": "42429142",
+   "precio": 4776.75,
+   "etiqueta": "otro producto",
+   "frase": "Crema de manos",
+   "nota": "cosmética",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Manteca|19",
+   "uid": "Manteca#7",
+   "cadena": "Día",
+   "item": "Manteca",
+   "titulo": "Galletitas Mantequitas Dia 250 Gr.",
+   "marca": "DIA",
+   "ean": "8480017124630",
+   "precio": 1690.0,
+   "etiqueta": "otro producto",
+   "frase": "Galletitas Mantequitas",
+   "nota": "galletitas sabor manteca",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Chango Más|Manteca|47",
+   "uid": "Manteca#8",
+   "cadena": "Chango Más",
+   "item": "Manteca",
+   "titulo": "Galletitas Mini Mantecadas Parnor 170g",
+   "marca": "PARNOR",
+   "ean": "7791324156919",
+   "precio": 1639.0,
+   "etiqueta": "otro producto",
+   "frase": "Galletitas Mini Mantecadas",
+   "nota": "galletitas",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Manteca|33",
+   "uid": "Manteca#9",
+   "cadena": "Carrefour",
+   "item": "Manteca",
+   "titulo": "Galletitas mini Par-nor mantecas bolsa 170 g.",
+   "marca": "Par-nor",
+   "ean": "7791324156919",
+   "precio": 1650.0,
+   "etiqueta": "otro producto",
+   "frase": "Galletitas mini",
+   "nota": "galletitas mantecas",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Manteca|23",
+   "uid": "Manteca#10",
+   "cadena": "Día",
+   "item": "Manteca",
+   "titulo": "Jabon De Tocador Palmolive Naturals Karite Y Vitamina E 90 G 3 Ud.",
+   "marca": "PALMOLIVE",
+   "ean": "7509546683379",
+   "precio": 2431.0,
+   "etiqueta": "otro producto",
+   "frase": "Jabon De Tocador",
+   "nota": "cosmética; pack 3 ud.",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Manteca|39",
+   "uid": "Manteca#11",
+   "cadena": "Carrefour",
+   "item": "Manteca",
+   "titulo": "Jabón de tocador Palmolive Naturals Karité y Vitamina E Nutrición Intensiva x3 90 grs",
+   "marca": "Palmolive",
+   "ean": "7509546683379",
+   "precio": 3739.0,
+   "etiqueta": "otro producto",
+   "frase": "Jabón de tocador",
+   "nota": "cosmética; pack x3",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Manteca|22",
+   "uid": "Manteca#12",
+   "cadena": "Día",
+   "item": "Manteca",
+   "titulo": "Protector Labial Humectante Nivea Essential Original 4,8 Gr.",
+   "marca": "NIVEA",
+   "ean": "4006000005478",
+   "precio": 5180.0,
+   "etiqueta": "otro producto",
+   "frase": "Protector Labial",
+   "nota": "cosmética",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Manteca|35",
+   "uid": "Manteca#13",
+   "cadena": "Carrefour",
+   "item": "Manteca",
+   "titulo": "Protector labial humectante Nivea Essential original care para todo tipo de piel 4.8 g.",
+   "marca": "Nivea",
+   "ean": "4006000005478",
+   "precio": 6475.0,
+   "etiqueta": "otro producto",
+   "frase": "Protector labial",
+   "nota": "cosmética",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Manteca|38",
+   "uid": "Manteca#14",
+   "cadena": "Carrefour",
+   "item": "Manteca",
+   "titulo": "Protector labial humectante Nivea vainilla Buttercream para todo tipo de piel 4.8 g.",
+   "marca": "Nivea",
+   "ean": "4006000005539",
+   "precio": 6475.0,
+   "etiqueta": "otro producto",
+   "frase": "Protector labial",
+   "nota": "cosmética; \"Buttercream\" es solo el aroma",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Pan lactal|8",
+   "uid": "Pan lactal#0",
+   "cadena": "Día",
+   "item": "Pan lactal",
+   "titulo": "Pan Blanco Artesano con Masa Madre 500 Gr.",
+   "marca": "BIMBO",
+   "ean": "7793890260885",
+   "precio": 6600.0,
+   "etiqueta": "correcto",
+   "frase": "Pan Blanco Artesano con Masa Madre",
+   "nota": "variante masa madre, pan de molde blanco",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Pan lactal|7",
+   "uid": "Pan lactal#1",
+   "cadena": "Carrefour",
+   "item": "Pan lactal",
+   "titulo": "Pan Blanco Bimbo 400 grs",
+   "marca": "Bimbo",
+   "ean": "7793890261233",
+   "precio": 3913.0,
+   "etiqueta": "correcto",
+   "frase": "Pan Blanco Bimbo",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Día|Pan lactal|7",
+   "uid": "Pan lactal#2",
+   "cadena": "Día",
+   "item": "Pan lactal",
+   "titulo": "Pan Blanco Bimbo 580 Gr.",
+   "marca": "BIMBO",
+   "ean": "7793890262131",
+   "precio": 5260.0,
+   "etiqueta": "correcto",
+   "frase": "Pan Blanco Bimbo",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Pan lactal|6",
+   "uid": "Pan lactal#3",
+   "cadena": "Carrefour",
+   "item": "Pan lactal",
+   "titulo": "Pan blanco Bimbo 580 grs",
+   "marca": "Bimbo",
+   "ean": "7793890262131",
+   "precio": 5264.35,
+   "etiqueta": "correcto",
+   "frase": "Pan blanco Bimbo",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Pan lactal|23",
+   "uid": "Pan lactal#4",
+   "cadena": "Carrefour",
+   "item": "Pan lactal",
+   "titulo": "Pan blanco Bimbo Artesano con Masa Madre 500 grs",
+   "marca": "Artesano",
+   "ean": "7793890260885",
+   "precio": 8900.0,
+   "etiqueta": "correcto",
+   "frase": "Pan blanco Bimbo Artesano con Masa Madre",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Pan lactal|21",
+   "uid": "Pan lactal#5",
+   "cadena": "Carrefour",
+   "item": "Pan lactal",
+   "titulo": "Pan Blanco Briosh 315 grs",
+   "marca": "Briosh",
+   "ean": "7793890259292",
+   "precio": 4190.0,
+   "etiqueta": "correcto",
+   "frase": "Pan Blanco Briosh",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Pan lactal|24",
+   "uid": "Pan lactal#6",
+   "cadena": "Carrefour",
+   "item": "Pan lactal",
+   "titulo": "Pan brioche para hamburguesa Bimbo Artesano 160 grs",
+   "marca": "Artesano",
+   "ean": "7793890262384",
+   "precio": 4115.0,
+   "etiqueta": "otro producto",
+   "frase": "para hamburguesa",
+   "nota": "pan de hamburguesa, excluido por el criterio",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Día|Pan lactal|14",
+   "uid": "Pan lactal#7",
+   "cadena": "Día",
+   "item": "Pan lactal",
+   "titulo": "Pan con Cereales y Semillas Fargo 400 Gr.",
+   "marca": "FARGO",
+   "ean": "7793890262643",
+   "precio": 3615.0,
+   "etiqueta": "correcto",
+   "frase": "Pan con Cereales y Semillas Fargo",
+   "nota": "variante con cereales/semillas del pan de molde",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Pan lactal|18",
+   "uid": "Pan lactal#8",
+   "cadena": "Carrefour",
+   "item": "Pan lactal",
+   "titulo": "Pan con Lino Bimbo 420 grs",
+   "marca": "Bimbo",
+   "ean": "7793890261219",
+   "precio": 4306.25,
+   "etiqueta": "correcto",
+   "frase": "Pan con Lino Bimbo",
+   "nota": "variante con semillas de lino",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Vea|Pan lactal|7",
+   "uid": "Pan lactal#9",
+   "cadena": "Vea",
+   "item": "Pan lactal",
+   "titulo": "Pan Con Semillas 330 Grs Briosh",
+   "marca": "ELABORACION PROPIA",
+   "ean": "7793890259315",
+   "precio": 4990.0,
+   "etiqueta": "correcto",
+   "frase": "Pan Con Semillas",
+   "nota": "variante con semillas, línea Briosh",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Pan lactal|19",
+   "uid": "Pan lactal#10",
+   "cadena": "Carrefour",
+   "item": "Pan lactal",
+   "titulo": "Pan con semillas Oroweat 600 grs",
+   "marca": "Oroweat",
+   "ean": "7793890261523",
+   "precio": 7893.75,
+   "etiqueta": "correcto",
+   "frase": "Pan con semillas Oroweat",
+   "nota": "variante con semillas",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Pan lactal|22",
+   "uid": "Pan lactal#11",
+   "cadena": "Carrefour",
+   "item": "Pan lactal",
+   "titulo": "Pan de molde Brioche Artesano 500 grs",
+   "marca": "Artesano",
+   "ean": "7793890262407",
+   "precio": 8900.0,
+   "etiqueta": "correcto",
+   "frase": "Pan de molde Brioche Artesano",
+   "nota": "pan de molde, variante brioche",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Pan lactal|25",
+   "uid": "Pan lactal#12",
+   "cadena": "Carrefour",
+   "item": "Pan lactal",
+   "titulo": "Pan de papa para hamburguesa Bimbo Artesano 160 grs",
+   "marca": "Artesano",
+   "ean": "7793890262391",
+   "precio": 4115.0,
+   "etiqueta": "otro producto",
+   "frase": "para hamburguesa",
+   "nota": "pan de papa para hamburguesa, excluido por el criterio",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Carrefour|Pan lactal|17",
+   "uid": "Pan lactal#13",
+   "cadena": "Carrefour",
+   "item": "Pan lactal",
+   "titulo": "Pan Hogaza Blanca Oroweat 600 grs",
+   "marca": "Oroweat",
+   "ean": "7793890261837",
+   "precio": 7725.0,
+   "etiqueta": "correcto",
+   "frase": "Pan Hogaza Blanca Oroweat",
+   "nota": "pan de molde blanco rebanado formato hogaza",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Día|Pan lactal|15",
+   "uid": "Pan lactal#14",
+   "cadena": "Día",
+   "item": "Pan lactal",
+   "titulo": "Pan Integral Artesano con Masa Madre 500 Gr.",
+   "marca": "BIMBO",
+   "ean": "7793890260892",
+   "precio": 10300.0,
+   "etiqueta": "correcto",
+   "frase": "Pan Integral Artesano con Masa Madre",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Pan lactal|10",
+   "uid": "Pan lactal#15",
+   "cadena": "Carrefour",
+   "item": "Pan lactal",
+   "titulo": "Pan Integral Bimbo 420 grs",
+   "marca": "Bimbo",
+   "ean": "7793890261196",
+   "precio": 4306.25,
+   "etiqueta": "correcto",
+   "frase": "Pan Integral Bimbo",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Pan lactal|26",
+   "uid": "Pan lactal#16",
+   "cadena": "Carrefour",
+   "item": "Pan lactal",
+   "titulo": "Pan integral Bimbo Artesano con Masa Madre 500 grs",
+   "marca": "Artesano",
+   "ean": "7793890260892",
+   "precio": 9700.0,
+   "etiqueta": "correcto",
+   "frase": "Pan integral Bimbo Artesano con Masa Madre",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Pan lactal|20",
+   "uid": "Pan lactal#17",
+   "cadena": "Carrefour",
+   "item": "Pan lactal",
+   "titulo": "Pan integral Bimbo Cero Cero 430 grs",
+   "marca": "Bimbo",
+   "ean": "7793890261226",
+   "precio": 4302.35,
+   "etiqueta": "correcto",
+   "frase": "Pan integral Bimbo",
+   "nota": "variante Cero Cero (sin azúcar agregada)",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Vea|Pan lactal|8",
+   "uid": "Pan lactal#18",
+   "cadena": "Vea",
+   "item": "Pan lactal",
+   "titulo": "Pan Integral Con Masa Madre 500 Grs Artesano",
+   "marca": "ARTESANO",
+   "ean": "7793890260892",
+   "precio": 9300.0,
+   "etiqueta": "correcto",
+   "frase": "Pan Integral Con Masa Madre",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Día|Pan lactal|11",
+   "uid": "Pan lactal#19",
+   "cadena": "Día",
+   "item": "Pan lactal",
+   "titulo": "Pan Integral Fargo 400 Gr.",
+   "marca": "FARGO",
+   "ean": "7793890261486",
+   "precio": 3615.0,
+   "etiqueta": "correcto",
+   "frase": "Pan Integral Fargo",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Pan lactal|15",
+   "uid": "Pan lactal#20",
+   "cadena": "Carrefour",
+   "item": "Pan lactal",
+   "titulo": "Pan Integral Fargo 400 grs",
+   "marca": "Fargo",
+   "ean": "7793890261486",
+   "precio": 3612.0,
+   "etiqueta": "correcto",
+   "frase": "Pan Integral Fargo",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Día|Pan lactal|9",
+   "uid": "Pan lactal#21",
+   "cadena": "Día",
+   "item": "Pan lactal",
+   "titulo": "Pan Integral Fargo 575 Gr.",
+   "marca": "FARGO",
+   "ean": "7793890262629",
+   "precio": 4859.0,
+   "etiqueta": "correcto",
+   "frase": "Pan Integral Fargo",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Pan lactal|11",
+   "uid": "Pan lactal#22",
+   "cadena": "Carrefour",
+   "item": "Pan lactal",
+   "titulo": "Pan Integral Fargo 575 grs",
+   "marca": "Fargo",
+   "ean": "7793890262629",
+   "precio": 4859.4,
+   "etiqueta": "correcto",
+   "frase": "Pan Integral Fargo",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Pan lactal|9",
+   "uid": "Pan lactal#23",
+   "cadena": "Carrefour",
+   "item": "Pan lactal",
+   "titulo": "Pan Lacteado Fargo 370 grs",
+   "marca": "Fargo",
+   "ean": "7793890261479",
+   "precio": 3251.4,
+   "etiqueta": "correcto",
+   "frase": "Pan Lacteado Fargo",
+   "nota": "lacteado = lactal",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Pan lactal|12",
+   "uid": "Pan lactal#24",
+   "cadena": "Carrefour",
+   "item": "Pan lactal",
+   "titulo": "Pan Lacteado Rodajas Finas Fargo 370 grs",
+   "marca": "Fargo",
+   "ean": "7793890261509",
+   "precio": 3251.4,
+   "etiqueta": "correcto",
+   "frase": "Pan Lacteado Rodajas Finas Fargo",
+   "nota": "variante rodajas finas",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Pan lactal|16",
+   "uid": "Pan lactal#25",
+   "cadena": "Carrefour",
+   "item": "Pan lactal",
+   "titulo": "Pan Lacteado Rodajas Finas Fargo 510 grs",
+   "marca": "Fargo",
+   "ean": "7793890262155",
+   "precio": 4373.4,
+   "etiqueta": "correcto",
+   "frase": "Pan Lacteado Rodajas Finas Fargo",
+   "nota": "variante rodajas finas",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Pan lactal|8",
+   "uid": "Pan lactal#26",
+   "cadena": "Carrefour",
+   "item": "Pan lactal",
+   "titulo": "Pan Multigrano Oroweat 600 grs",
+   "marca": "Oroweat",
+   "ean": "7793890261516",
+   "precio": 7896.75,
+   "etiqueta": "correcto",
+   "frase": "Pan Multigrano Oroweat",
+   "nota": "variante multigrano del pan de molde",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Día|Pan lactal|10",
+   "uid": "Pan lactal#27",
+   "cadena": "Día",
+   "item": "Pan lactal",
+   "titulo": "Pan Salvado Fargo 390 Gr.",
+   "marca": "FARGO",
+   "ean": "7793890261462",
+   "precio": 6025.0,
+   "etiqueta": "correcto",
+   "frase": "Pan Salvado Fargo",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Pan lactal|13",
+   "uid": "Pan lactal#28",
+   "cadena": "Carrefour",
+   "item": "Pan lactal",
+   "titulo": "Pan Salvado Fargo 390 grs",
+   "marca": "Fargo",
+   "ean": "7793890261462",
+   "precio": 3612.0,
+   "etiqueta": "correcto",
+   "frase": "Pan Salvado Fargo",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Día|Pan lactal|12",
+   "uid": "Pan lactal#29",
+   "cadena": "Día",
+   "item": "Pan lactal",
+   "titulo": "Pan Salvado Fargo 600 Gr.",
+   "marca": "FARGO",
+   "ean": "7793890262162",
+   "precio": 8100.0,
+   "etiqueta": "correcto",
+   "frase": "Pan Salvado Fargo",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Carrefour|Pan lactal|14",
+   "uid": "Pan lactal#30",
+   "cadena": "Carrefour",
+   "item": "Pan lactal",
+   "titulo": "Pan Salvado Fargo 600 grs",
+   "marca": "Fargo",
+   "ean": "7793890262162",
+   "precio": 4859.4,
+   "etiqueta": "correcto",
+   "frase": "Pan Salvado Fargo",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Día|Pan lactal|13",
+   "uid": "Pan lactal#31",
+   "cadena": "Día",
+   "item": "Pan lactal",
+   "titulo": "Pan Semillas Con Masa Madre 600 Gr.",
+   "marca": "OROWEAT",
+   "ean": "7793890258424",
+   "precio": 11159.0,
+   "etiqueta": "correcto",
+   "frase": "Pan Semillas Con Masa Madre",
+   "nota": "variante con semillas, Oroweat",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Vea|Tomate perita lata|5",
+   "uid": "Tomate perita lata#0",
+   "cadena": "Vea",
+   "item": "Tomate perita lata",
+   "titulo": "Tomate En Mitades Deshidratados Paquete 70 Gr",
+   "marca": "VERDULERIA PROPIA",
+   "ean": "7798196040278",
+   "precio": 3999.0,
+   "etiqueta": "otro producto",
+   "frase": "En Mitades Deshidratados",
+   "nota": "tomate deshidratado, no en conserva",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "otro producto",
+    "B": "otro producto"
+   }
+  },
+  {
+   "cid": "Chango Más|Tomate perita lata|9",
+   "uid": "Tomate perita lata#1",
+   "cadena": "Chango Más",
+   "item": "Tomate perita lata",
+   "titulo": "Tomates En Lata La Campagnola Salsati Pelados Cubeteados 400 G",
+   "marca": "La Campagnola",
+   "ean": "7790580147266",
+   "precio": 2289.0,
+   "etiqueta": "correcto",
+   "frase": "Tomates En Lata",
+   "nota": "variante pelados cubeteados",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Chango Más|Tomate perita lata|8",
+   "uid": "Tomate perita lata#2",
+   "cadena": "Chango Más",
+   "item": "Tomate perita lata",
+   "titulo": "Tomates En Lata La Campagnola Salsati Pelados Peritas 400 G",
+   "marca": "La Campagnola",
+   "ean": "7790580147242",
+   "precio": 1989.0,
+   "etiqueta": "correcto",
+   "frase": "Tomates En Lata ... Peritas",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Chango Más|Tomate perita lata|7",
+   "uid": "Tomate perita lata#3",
+   "cadena": "Chango Más",
+   "item": "Tomate perita lata",
+   "titulo": "Tomates Pelados Perita Cubo Arcor 400 Gr",
+   "marca": "Arcor",
+   "ean": "7790580567101",
+   "precio": 1819.0,
+   "etiqueta": "correcto",
+   "frase": "Tomates Pelados Perita Cubo",
+   "nota": "variante cubeteado",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Vea|Tomate perita lata|4",
+   "uid": "Tomate perita lata#4",
+   "cadena": "Vea",
+   "item": "Tomate perita lata",
+   "titulo": "Tomates Perita 400 Grs Arcor",
+   "marca": "ARCOR",
+   "ean": "7790580567903",
+   "precio": 1690.0,
+   "etiqueta": "correcto",
+   "frase": "Tomates Perita",
+   "nota": "Arcor: conserva de tomate perita",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Chango Más|Tomate perita lata|6",
+   "uid": "Tomate perita lata#5",
+   "cadena": "Chango Más",
+   "item": "Tomate perita lata",
+   "titulo": "Tomates Perita Cubeteados La Campagnola 400gr",
+   "marca": "La Campagnola",
+   "ean": "7793360105944",
+   "precio": 2099.0,
+   "etiqueta": "correcto",
+   "frase": "Tomates Perita Cubeteados",
+   "nota": "",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
+  },
+  {
+   "cid": "Chango Más|Tomate perita lata|5",
+   "uid": "Tomate perita lata#6",
+   "cadena": "Chango Más",
+   "item": "Tomate perita lata",
+   "titulo": "Tomates Perita Inca 400g",
+   "marca": "Inca",
+   "ean": "7790790120738",
+   "precio": 1799.0,
+   "etiqueta": "correcto",
+   "frase": "Tomates Perita",
+   "nota": "Inca: tomate en conserva",
+   "evidencia_extra": "",
+   "fuente": "acuerdo A=B",
+   "pasadas": {
+    "A": "correcto",
+    "B": "correcto"
+   }
   }
  ]
 }
