@@ -6,7 +6,11 @@ cosa que el instrumento dice cuidar, y exige que salga con error. Fuera del CI, 
 producción: es el guard del guard.
 
 Cada mutación tiene que dar **exit 1** y el control sin mutar, **exit 0**. Si alguna no se detecta, este
-script sale con exit 1 y dice cuál.
+script sale con exit 1 y dice cuál. Son M1–M11.
+
+⚠️ Una mutación tiene que romper **lo que el informe imprime**, no una función vecina que se le parezca:
+M10 rompía `fuentes_coto` y no la tabla de §H1b, así que el bug original de §H1b, reintroducido, pasaba en
+verde. Lo encontró la revisión del 24/09 y por eso M10 muta `conteos_h1b`, que es de donde imprime la tabla.
 
 Desde sepa_backend/ (en Windows, con `$env:PYTHONIOENCODING='utf-8'`):
     venv\\Scripts\\python.exe -m tests.medir_representantes_mutaciones
@@ -172,27 +176,68 @@ def m9():
             else [f"sin deduplicar serían {crudo} aceptados nuevos en Coto; deduplicados son {dedup}"])
 
 
+def recorte_de(cap2):
+    """Por qué no se puede probar la (11) con esta captura, o None si sí se puede."""
+    if not ((cap2.get("__recorte") or {}).get("quitadas_por_seccion") or {}).get("profundo/Coto"):
+        return "(11) no se puede probar: la captura nueva no está recortada, no hay nada que reconstruir"
+    return None
+
+
 def m10():
     """
     §H1b contando con `len()` sobre la captura RECORTADA, sin reconstruir lo que el recorte se llevó → (11).
-    Es el bug que encontró la segunda revisión del 23/09: `Nrpp=48` daba 258 filas en vez de 563 y ocho
-    ítems mostraban 0 — entre ellos el arroz, los fideos y el aceite, que sí traen filas.
+
+    Son **las dos líneas exactas** del bug que encontró la segunda revisión del 23/09: `Nrpp=48` daba 258
+    filas en vez de 563 y ocho ítems mostraban 0 — entre ellos el arroz, los fideos y el aceite, que sí
+    traen filas. Muta `conteos_h1b`, que es de donde imprime la tabla; hasta el 24/09 rompía `fuentes_coto`,
+    o sea la reconstrucción y no la tabla, así que el bug de verdad le pasaba en verde.
     """
     if not NUEVA:
         return ["(11) no se puede probar: falta la captura nueva"]
     cap2, filas2, _extra = NUEVA
-    if not ((cap2.get("__recorte") or {}).get("quitadas_por_seccion") or {}).get("profundo/Coto"):
-        return ["(11) no se puede probar: la captura nueva no está recortada, no hay nada que reconstruir"]
-    viejo = MR.fuentes_coto
-    MR.fuentes_coto = lambda c2, f2, secs, q: [
-        ("consulta de hoy (24)", f2["Coto"].get(q, [])),
-        ("Nrpp=48", secs["profundo"]["Coto"].get(q, [])),
-        ("No=24 (2ª página)", secs["coto_no24"]["Coto"].get(q, [])),
-    ]
+    if (motivo := recorte_de(cap2)):
+        return [motivo]
+
+    def con_len(c2, f2, secs, faltantes=None):
+        salida = []
+        for prod in MR.CANASTA:
+            q = prod["nombre"]
+            n_prof = len((c2.get("profundo", {}).get("Coto") or {}).get(q) or [])
+            n_no24 = len((c2.get("coto_no24") or {}).get(q) or [])
+            salida.append((q, len((c2["datos"]["Coto"] or {}).get(q) or []), n_prof, n_no24))
+        return salida
+
+    viejo = MR.conteos_h1b
+    MR.conteos_h1b = con_len
     try:
         return MR.validar_reconstruccion_coto(cap2, filas2)
     finally:
-        MR.fuentes_coto = viejo
+        MR.conteos_h1b = viejo
+
+
+def m11():
+    """
+    `fuentes_coto` descartando en silencio una clave que el recorte anotó y que no encuentra en `datos` → (11).
+
+    Es la otra mitad del mismo bug: la reconstrucción se completa "con lo que haya" y el conteo baja sin que
+    nada lo diga. La clave que se rompe es de `alternativas`, que no entra en la tabla de §H1b ni en el total
+    de `Nrpp=48`: si la (11) no contara los descartes, nada la vería.
+    """
+    if not NUEVA:
+        return ["(11) no se puede probar: falta la captura nueva"]
+    cap2, filas2, _extra = NUEVA
+    if (motivo := recorte_de(cap2)):
+        return [motivo]
+    qc = (cap2.get("__recorte") or {}).get("quitadas_claves") or {}
+    usadas = {qa for prod in MR.CANASTA for qa in (cap2.get("__alternativas") or {}).get(prod["nombre"], [])}
+    k = next((k for k, v in qc.items()
+              if k.startswith("alternativas|Coto|") and v and k.split("|", 2)[2] in usadas), None)
+    if k is None:
+        return ["(11) no se puede probar: el recorte no anotó claves de alternativas de Coto"]
+    c2 = copy.deepcopy(cap2)
+    # La clave sigue anotada, pero ya no describe ninguna fila de `datos`: `fuentes_coto` no la reconstruye.
+    c2["__recorte"]["quitadas_claves"][k][0][2] += " que no existe"
+    return MR.validar_reconstruccion_coto(c2, filas2)
 
 
 PRUEBAS = [
@@ -207,13 +252,14 @@ PRUEBAS = [
     ("M8 etiqueta de fuente profunda inventada (3b)", m8, False),
     ("M9 §H sin deduplicar (control, no validación)", m9, False),
     ("M10 §H1b contado sobre la captura recortada (11)", m10, False),
+    ("M11 `fuentes_coto` descarta una clave del recorte (11)", m11, False),
 ]
 
 
 def main_cli():
     sys.stdout.reconfigure(encoding="utf-8")
     print(f"Representante mutado: {REP_MALO} · fila no representante: {NO_REP}")
-    print(f"Captura nueva: {'sí' if NUEVA else 'NO (M7, M8, M9 y M10 no se pueden probar)'}\n")
+    print(f"Captura nueva: {'sí' if NUEVA else 'NO (M7, M8, M9, M10 y M11 no se pueden probar)'}\n")
     malas = 0
     for nombre, fn, espera_verde in PRUEBAS:
         errores = fn()
