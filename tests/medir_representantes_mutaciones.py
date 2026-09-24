@@ -54,7 +54,8 @@ def corrida(etq, bases=None, hoy=None):
         errores += e7 + e8
         if NUEVA:
             cap2, filas2, extra = NUEVA
-            errores += MR.validar_nueva(cap2, filas2) + MR.validar_etiquetas_profundas(cap2, extra)
+            errores += (MR.validar_nueva(cap2, filas2) + MR.validar_etiquetas_profundas(cap2, extra)
+                        + MR.validar_reconstruccion_coto(cap2, filas2))
     except MR.InstrumentoInvalido as e:
         errores.append(str(e))
     return errores
@@ -171,6 +172,29 @@ def m9():
             else [f"sin deduplicar serían {crudo} aceptados nuevos en Coto; deduplicados son {dedup}"])
 
 
+def m10():
+    """
+    §H1b contando con `len()` sobre la captura RECORTADA, sin reconstruir lo que el recorte se llevó → (11).
+    Es el bug que encontró la segunda revisión del 23/09: `Nrpp=48` daba 258 filas en vez de 563 y ocho
+    ítems mostraban 0 — entre ellos el arroz, los fideos y el aceite, que sí traen filas.
+    """
+    if not NUEVA:
+        return ["(11) no se puede probar: falta la captura nueva"]
+    cap2, filas2, _extra = NUEVA
+    if not ((cap2.get("__recorte") or {}).get("quitadas_por_seccion") or {}).get("profundo/Coto"):
+        return ["(11) no se puede probar: la captura nueva no está recortada, no hay nada que reconstruir"]
+    viejo = MR.fuentes_coto
+    MR.fuentes_coto = lambda c2, f2, secs, q: [
+        ("consulta de hoy (24)", f2["Coto"].get(q, [])),
+        ("Nrpp=48", secs["profundo"]["Coto"].get(q, [])),
+        ("No=24 (2ª página)", secs["coto_no24"]["Coto"].get(q, [])),
+    ]
+    try:
+        return MR.validar_reconstruccion_coto(cap2, filas2)
+    finally:
+        MR.fuentes_coto = viejo
+
+
 PRUEBAS = [
     ("Control, sin mutación", lambda: corrida(ETQ0), True),
     ("M1 la mermelada de Coto etiquetada 'correcto'", lambda: con_etiquetas(m1), False),
@@ -182,13 +206,14 @@ PRUEBAS = [
     ("M7 un ítem vacío sin documentar (10)", m7, False),
     ("M8 etiqueta de fuente profunda inventada (3b)", m8, False),
     ("M9 §H sin deduplicar (control, no validación)", m9, False),
+    ("M10 §H1b contado sobre la captura recortada (11)", m10, False),
 ]
 
 
 def main_cli():
     sys.stdout.reconfigure(encoding="utf-8")
     print(f"Representante mutado: {REP_MALO} · fila no representante: {NO_REP}")
-    print(f"Captura nueva: {'sí' if NUEVA else 'NO (M7, M8 y M9 no se pueden probar)'}\n")
+    print(f"Captura nueva: {'sí' if NUEVA else 'NO (M7, M8, M9 y M10 no se pueden probar)'}\n")
     malas = 0
     for nombre, fn, espera_verde in PRUEBAS:
         errores = fn()

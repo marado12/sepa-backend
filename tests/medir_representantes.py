@@ -659,8 +659,14 @@ def informe_aceptacion(bases):
 #  §B — QUÉ SEPARA UN BUEN REPRESENTANTE DE UNO MALO, POR CADENA
 # ─────────────────────────────────────────────────────────────────
 
+def como_fn(etq_o_fn):
+    """Una función cid -> etiqueta, venga un dict de etiquetas o ya una función (otra fecha)."""
+    return etq_o_fn if callable(etq_o_fn) else (lambda cid: et(etq_o_fn, cid))
+
+
 def efecto(elegido, etq, hoy):
     """Por cadena: cómo quedan las 20 filas con esta variante y qué cambió respecto de hoy."""
+    etf = como_fn(etq)
     out = {}
     for c in CADENAS:
         d = {k: 0 for k in ETQ}
@@ -668,8 +674,8 @@ def efecto(elegido, etq, hoy):
         for prod in CANASTA:
             q = prod["nombre"]
             a, b = hoy.get((c, q)), elegido.get((c, q))
-            ea = et(etq, a[0]["cid"]) if a else "faltante"
-            eb = et(etq, b[0]["cid"]) if b else "faltante"
+            ea = etf(a[0]["cid"]) if a else "faltante"
+            eb = etf(b[0]["cid"]) if b else "faltante"
             if b is None:
                 d["faltante"] += 1
             elif eb in ETQ:
@@ -861,6 +867,26 @@ def fila_ef(nombre, ef, ef_hoy, tipo):
 #  §C — EL UMBRAL
 # ─────────────────────────────────────────────────────────────────
 
+def corte_sin_perder(sel, etq, umbrales=None):
+    """
+    (corte más alto que no pierde ni un correcto, malos que saca, peor correcto) y qué cuesta 0,50.
+    `sel` es {(cadena, ítem): (fila, score)}; `etq` un dict de etiquetas o una función.
+    """
+    etf = como_fn(etq)
+    reps = [(c, q, f) for (c, q), (f, _s) in sel.items()]
+    ok = [(s_hoy(ITEM[q], f["of"]), c, q) for c, q, f in reps if etf(f["cid"]) == "correcto"]
+    mal = [(s_hoy(ITEM[q], f["of"]), c, q) for c, q, f in reps if etf(f["cid"]) == "otro producto"]
+    peor_ok = min(ok) if ok else None
+    mejor = (UMBRAL_MATCH, [])
+    for u in (umbrales or [x / 1000 for x in range(int(UMBRAL_MATCH * 1000), 801)]):
+        if any(sc < u for sc, _c, _q in ok):
+            break
+        mejor = (u, [(c, q) for sc, c, q in mal if sc < u])
+    en_050 = {"saca_malos": [(c, q) for sc, c, q in mal if sc < 0.50],
+              "pierde_correctos": [(c, q, sc) for sc, c, q in ok if sc < 0.50]}
+    return mejor, peor_ok, en_050
+
+
 def informe_umbral(ctx, etq, filas):
     hoy = ctx["elegidos"]["hoy"]
     print("\n" + "=" * 100)
@@ -894,22 +920,15 @@ def informe_umbral(ctx, etq, filas):
     # ✏️ Revisión de Santiago (22/09): que no exista un corte que saque a TODOS los malos no significa que
     # ningún corte sirva. El corte más alto que no pierde un solo correcto, con su margen:
     print("\n  El corte más alto que no pierde ni un correcto, mirando las 5 cadenas juntas:")
-    reps = [(c, q, f) for (c, q), (f, _s) in hoy.items()]
-    peor_ok = min((s_hoy(ITEM[q], f["of"]), c, q) for c, q, f in reps if et(etq, f["cid"]) == "correcto")
-    mejor = None
-    for u in [x / 1000 for x in range(450, 801)]:
-        saca_ok = [1 for c, q, f in reps if et(etq, f["cid"]) == "correcto" and s_hoy(ITEM[q], f["of"]) < u]
-        if saca_ok:
-            break
-        saca_mal = [(c, q) for c, q, f in reps
-                    if et(etq, f["cid"]) == "otro producto" and s_hoy(ITEM[q], f["of"]) < u]
-        mejor = (u, saca_mal)
-    u, saca_mal = mejor
-    print(f"    umbral {u:.3f}: saca {len(saca_mal)} malos ({', '.join(f'{c}/{q}' for c, q in saca_mal) or '—'}) "
-          f"y ningún correcto. Margen {peor_ok[0] - u:.3f} contra el peor correcto "
-          f"({peor_ok[1]}/{peor_ok[2]}, {peor_ok[0]:.3f}).")
-    print(f"    {len(saca_mal)} de {sum(1 for c, q, f in reps if et(etq, f['cid']) == 'otro producto')} malos, "
-          f"sin costo. El resto puntúa por encima de cualquier correcto: el umbral no los alcanza.")
+    (u, saca_mal), peor_ok, en_050 = corte_sin_perder(hoy, etq)
+    malos_tot = sum(1 for (_c, q), (f, _s) in hoy.items() if et(etq, f["cid"]) == "otro producto")
+    print(f"    umbral {u:.3f}: saca {len(saca_mal)} de {malos_tot} malos "
+          f"({', '.join(f'{c}/{q}' for c, q in saca_mal) or '—'}) y ningún correcto. Margen "
+          f"{peor_ok[0] - u:.3f} contra el peor correcto ({peor_ok[1]}/{peor_ok[2]}, {peor_ok[0]:.3f}).")
+    print("    El resto puntúa por encima de cualquier correcto: el umbral no los alcanza.")
+    # ✏️ 23/09, revisión: el veredicto del 0,50 NO es de la regla, es de esta captura. Ver §G.
+    print(f"    Con 0,50 exacto, en ESTA captura: saca {len(en_050['saca_malos'])} malos y pierde "
+          f"{len(en_050['pierde_correctos'])} correctos. En la captura del 22/09 no sale igual: ver §G.")
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -1277,11 +1296,32 @@ def informe_nueva(filas2, cap2, et2, herencia, etq_extra):
         print(f"  {c:<11} {n['correcto']:>9} {n['otro producto']:>11} {n['dudoso']:>7} "
               f"{n['sin etiqueta']:>13} {sin_rep:>8}")
 
-    print("\n  Señales sobre la fecha nueva (holdout), como clasificador de los representantes:")
+    # ✏️ 23/09, revisión: C2 se había descartado con un ejemplo falso. Acá van las señales de la fecha nueva
+    # como CLASIFICADOR y como FILTRO, con la misma regla y los dos denominadores.
+    modales = {(c, p["nombre"]): modal_categoria(filas2, c, p["nombre"])
+               for c in CADENAS for p in CANASTA}
+    validas = defaultdict(set)
+    for c in CADENAS:
+        for prod in CANASTA:
+            for f in U.candidatos(filas2, c, prod["nombre"]):
+                if et2(f["cid"]) == "correcto" and categoria_de(f):
+                    validas[(c, prod["nombre"])].add(categoria_de(f))
+
+    def f_c2(p, f):
+        m = modales.get((f["c"], p["nombre"]))
+        return m is None or categoria_de(f) == m
+
+    def f_c4(p, f):
+        v = validas[(f["c"], p["nombre"])]
+        return not v or categoria_de(f) in v
+
     señales = {"N criterio": lambda p, f: not ({raiz(t) for t in lista_tokens(f["of"].producto)}
                                                & set(negativas(p["nombre"]))),
                "S3 manda": lambda p, f: manda(p, f["of"]),
-               "C1 categoría": lambda p, f: c1(p, f) is not False}
+               "C1 categoría": lambda p, f: c1(p, f) is not False,
+               "C2 modal": f_c2,
+               "C4 cota": f_c4}
+    print("\n  Señales sobre la fecha nueva (holdout), como CLASIFICADOR de los representantes:")
     print(f"  {'Señal':<14} " + " ".join(f"{c:>15}" for c in CADENAS) + f"   {'total':>12}")
     for n, fil in señales.items():
         cel, tm, tf = [], 0, 0
@@ -1295,6 +1335,34 @@ def informe_nueva(filas2, cap2, et2, herencia, etq_extra):
         print(f"  {n:<14} " + " ".join(f"{v:>15}" for v in cel) + f"   {f'{tm} (+{tf})':>12}")
     print("  'C1 categoría' solo puede marcar donde la categoría vino; sin categoría no decide (cuenta como")
     print("  no marcar), así que su columna de falsos positivos es un piso, no el número final.")
+
+    print("\n  Las mismas, como FILTRO antes de elegir, con la regla y los dos denominadores:")
+    ef_hoy2 = efecto(hoy2, et2, hoy2)
+    fila_ef("hoy", ef_hoy2, ef_hoy2, "—")
+    for n, fil in señales.items():
+        fila_ef(n, efecto(seleccionar(filas2, filtro=fil), et2, hoy2), ef_hoy2, "—")
+    print("  ⚠️ **C2 no necesita etiquetas ni tabla curada**: la categoría modal sale de los candidatos que el")
+    print("  matcher ya acepta. Por eso mismo hereda su sesgo: donde la mayoría de los aceptados es otro")
+    print("  producto —el azúcar de Coto del 14/09, con 24 candidatos que son mermeladas y edulcorantes— la")
+    print("  modal se equivoca con el matcher. Y se midió sobre UNA captura: el 14/09 no trae categoría.")
+
+    # ✏️ 23/09, revisión: el umbral, sobre ESTA fecha. En el 14/09 el corte 0,50 no perdía ningún correcto;
+    # acá sí, y por eso "0,50 sale gratis" no se puede afirmar con una sola captura.
+    (u2, saca2), peor_ok2, en_050 = corte_sin_perder(hoy2, et2)
+    print(f"\n  El umbral en esta fecha: el corte más alto que no pierde un correcto es {u2:.3f} "
+          f"(saca {len(saca2)} malos).")
+    print(f"    Con 0,50: saca {len(en_050['saca_malos'])} malos y **pierde "
+          f"{len(en_050['pierde_correctos'])} correctos**"
+          + ("".join(f"\n      pierde {c}/{q} (s={sc:.3f}), que queda faltante"
+                     for c, q, sc in en_050["pierde_correctos"]) if en_050["pierde_correctos"] else "."))
+
+    print("\n  Los cambios de representante que hace C2:")
+    for c in CADENAS:
+        for x in efecto(seleccionar(filas2, filtro=f_c2), et2, hoy2)[c]["cambios"]:
+            ant = x["antes"]["of"].producto[:40] if x["antes"] else "—"
+            des = x["despues"]["of"].producto[:40] if x["despues"] else "— (sin representante)"
+            print(f"    {c:<11} {x['item']:<19} {x['e_antes'] or '—':<13} -> {x['e_despues'] or '—':<13}"
+                  f" {ant:<42} -> {des}")
 
     print("\n  C4 · COTA con la categoría DADA. No es una señal que se pueda correr hoy: el conjunto de")
     print("  categorías válidas sale de las etiquetas (ítem × cadena). Mide qué compraría una tabla curada de")
@@ -1318,8 +1386,9 @@ def informe_nueva(filas2, cap2, et2, herencia, etq_extra):
         sin = sum(1 for prod in CANASTA if not validas[(c, prod["nombre"])])
         print(f"  {c:<11} {f'{m}/{len(malos)}':>15} {f'{fp}/{len(oks)}':>19} {sin:>27}")
 
-    print("\n  La categoría modal de los aceptados, por ítem y cadena (C2). Donde el matcher se equivoca en")
-    print("  masa, la modal se equivoca con él: es descriptiva, no una señal:")
+    print("\n  La categoría modal de los aceptados (C2), en las filas que hoy NO son correctas. Se ve por qué")
+    print("  funciona —la modal es la categoría del producto de verdad y el impostor está en otra— y dónde no:")
+    print("  cuando la mayoría de los aceptados es otro producto, la modal se equivoca con el matcher:")
     for c in CADENAS:
         for prod in CANASTA:
             q = prod["nombre"]
@@ -1385,6 +1454,27 @@ def fuentes_coto(cap2, filas2, secs, q):
     return fuentes
 
 
+def validar_reconstruccion_coto(cap2, filas2, secs=None):
+    """
+    (11) §H1b cuenta sobre la captura ENTERA, no sobre la recortada.
+
+    La captura del 22/09 entró al repo recortada: a `profundo/Coto` se le sacaron 305 filas que repetían
+    la consulta de hoy, con sus claves anotadas en `__recorte.quitadas_claves` para reconstruirlas. Contar
+    con `len()` sobre lo que quedó daba 258 filas de `Nrpp=48` en vez de 563 y mostraba 0 en ocho ítems que
+    sí traen filas — el informe cambiaba con el recorte, que es justo lo que el recorte promete que no pasa.
+    Con una captura entera el recorte no existe y la cuenta tiene que dar igual.
+    """
+    secs = secs or fuentes_profundas(cap2)
+    total = sum(len(dict(fuentes_coto(cap2, filas2, secs, p["nombre"])).get("Nrpp=48", [])) for p in CANASTA)
+    en_captura = sum(len(v) for v in ((cap2.get("profundo") or {}).get("Coto") or {}).values())
+    quitadas = ((cap2.get("__recorte") or {}).get("quitadas_por_seccion") or {}).get("profundo/Coto", 0)
+    if total != en_captura + quitadas:
+        return [f"(11) §H1b cuenta {total} filas de `Nrpp=48` en Coto y la captura entera tiene "
+                f"{en_captura + quitadas} ({en_captura} en el archivo + {quitadas} que se llevó el recorte): "
+                f"el conteo no reconstruye el recorte"]
+    return []
+
+
 def informe_coto_profundo(cap2, filas2, et_of):
     """
     §H — ¿el producto que falta aparece si se pregunta distinto o se mira más hondo? "Catálogo" solo se
@@ -1399,6 +1489,8 @@ def informe_coto_profundo(cap2, filas2, et_of):
     print("=" * 100)
     print(f"  El request de producción pide 50 filas en VTEX (`FuenteVTEX.pagina`) y **24 en Coto**")
     print("  (`FuenteCoto.buscar` no manda `Nrpp`). Con `Nrpp=48` y con `No=24` Coto devuelve más:")
+    print("  ⚠️ Pero los 0 filas **no son del `Nrpp`**: con `Nrpp=48` hay ítems que devuelven 0 y con el")
+    print("  request de producción devuelven 24. Es intermitente, y la tabla de abajo lo muestra por ítem.")
     # ✏️ Revisión de Santiago (22/09): `Nrpp=48` vuelve a traer la primera página y `No=24` se solapa con
     # ella, así que sumar las tres fuentes cuenta de más. Todo lo de abajo deduplica por clave de unión.
     print(f"  {'Cadena':<11} {'filas hoy':>10} {'filas nuevas':>13} {'repetidas':>10} {'aceptados hoy':>14} "
@@ -1450,6 +1542,59 @@ def informe_coto_profundo(cap2, filas2, et_of):
                 e = et_of(q, "Coto", f["of"])
                 print(f"          s={s:.3f} ${f['of'].precio:>9,.0f} {(e or '—'):<13} {f['of'].producto[:44]:<44}"
                       f" | {categoria_de(f)}")
+
+    # ✏️ 23/09, revisión: los 0 filas por ítem y por request, y qué pasa si Coto trae 48 en vez de 24.
+    # ✏️ 23/09, segunda revisión: los tres conteos salen de `fuentes_coto`, que RECONSTRUYE lo
+    # que el recorte se llevó. Contarlos con `len()` sobre la captura recortada le sacaba a `Nrpp=48`
+    # las 305 filas repetidas y mostraba 0 en ocho ítems que sí traen filas: la validación (11) lo
+    # cuida, y la mutación M10 la pone en rojo.
+    print("\n  §H1b · FILAS POR REQUEST Y POR ÍTEM EN COTO — los 0 son intermitentes, no del `Nrpp`:")
+    print(f"    {'Ítem':<20} {'producción':>11} {'Nrpp=48':>8} {'No=24':>6}   nota")
+    for prod in CANASTA:
+        q = prod["nombre"]
+        fu = dict(fuentes_coto(cap2, filas2, secs, q))
+        n_hoy = len((cap2["datos"]["Coto"] or {}).get(q) or [])
+        n_prof = len(fu.get("Nrpp=48", []))
+        n_no24 = len(fu.get("No=24 (2ª página)", []))
+        nota = ""
+        if n_hoy == 0 and (n_prof or n_no24):
+            nota = "producción devuelve 0 y los otros requests traen filas"
+        elif n_hoy and n_prof == 0:
+            nota = "Nrpp=48 devuelve 0 donde producción trae filas"
+        elif not (n_hoy or n_prof or n_no24):
+            nota = "0 en los tres: no separable"
+        print(f"    {q:<20} {n_hoy:>11} {n_prof:>8} {n_no24:>6}   {nota}")
+
+    print("\n  §H1c · SI COTO TRAJERA 48 FILAS (producción + `No=24`), ¿mejora? Medido, no supuesto:")
+    filas48 = {c: filas2[c] for c in CADENAS}
+    filas48["Coto"] = {}
+    for prod in CANASTA:
+        q = prod["nombre"]
+        fu = dict(fuentes_coto(cap2, filas2, secs, q))
+        vistos, juntas = set(), []
+        for nombre in ("consulta de hoy (24)", "No=24 (2ª página)"):
+            for f in fu.get(nombre, []):
+                k = clave_union("Coto", f["of"])
+                if k not in vistos:
+                    vistos.add(k)
+                    juntas.append(f)
+        filas48["Coto"][q] = juntas
+    e48 = seleccionar(filas48)
+    n0 = Counter(et_of(q, "Coto", f["of"]) or "sin etiqueta" for (c, q), (f, _s) in hoy2.items() if c == "Coto")
+    n1 = Counter(et_of(q, "Coto", f["of"]) or "sin etiqueta" for (c, q), (f, _s) in e48.items() if c == "Coto")
+    print(f"    Coto con 24 filas: {dict(n0)}")
+    print(f"    Coto con 48 filas: {dict(n1)}")
+    for prod in CANASTA:
+        q = prod["nombre"]
+        a, b = hoy2.get(("Coto", q)), e48.get(("Coto", q))
+        if (a[0]["of"].producto if a else None) != (b[0]["of"].producto if b else None):
+            ea = (et_of(q, "Coto", a[0]["of"]) if a else "faltante") or "—"
+            eb = (et_of(q, "Coto", b[0]["of"]) if b else "faltante") or "—"
+            print(f"      {q:<20} {ea:<13} -> {eb:<13} {(a[0]['of'].producto[:32] if a else '—'):<34} -> "
+                  f"{(b[0]['of'].producto[:36] if b else '—')}")
+    print("    **Pedir más filas no está medido como arreglo:** gana el detergente y pierde la manteca, que se")
+    print("    va a una 'Figazzita Manteca' que empata en 0,733 y gana por precio. Lo que sí se sostiene es que")
+    print("    `FuenteCoto` puede devolver 0 filas sin error y la app no distingue 'no lo tiene' de 'no contestó'.")
 
     print("\n  §H2 · LA FORMA DE LA PALABRA — candidatos que el solapamiento EXACTO de tokens pierde y que")
     print("  un singular/plural mínimo recuperaría (`huevo` contra `huevos`). Por cadena, sobre la fecha nueva:")
@@ -1793,9 +1938,10 @@ def main_cli():
     print("  (7) con umbral 0,47 Coto/Azúcar se queda sin representante; sin las medialunas, Carrefour/Manteca")
     print(f"      pasa a {sigue[0][:50]!r} (${sigue[2]:,.0f}), etiquetado {sigue[1]!r}")
     print(f"  (8) {estado_e}")
-    print("  (9) las mutaciones las corre `python -m tests.medir_representantes_mutaciones`: las 9 en rojo")
+    print("  (9) las mutaciones las corre `python -m tests.medir_representantes_mutaciones`: las 10 en rojo")
     print(" (10) la captura nueva está completa, sin ítems vacíos fuera de VACIOS_CONOCIDOS, y el lazo la")
     print("      corre igual que producción · (3b) las etiquetas de fuentes profundas describen filas reales")
+    print(" (11) §H1b cuenta las filas de la captura ENTERA: reconstruye las que se llevó el recorte")
 
     informe_aceptacion(bases)
     informe_cobertura_correcta(filas, etq)
@@ -1813,7 +1959,9 @@ def main_cli():
         return
     cap2, filas2 = cargar(ruta2)
     et2, et_of, herencia, extra = etiquetas_nueva(filas, filas2, etq)
-    err = validar_nueva(cap2, filas2) + validar_etiquetas_profundas(cap2, extra)
+    secs2 = fuentes_profundas(cap2)
+    err = (validar_nueva(cap2, filas2) + validar_etiquetas_profundas(cap2, extra, secs2)
+           + validar_reconstruccion_coto(cap2, filas2, secs2))
     if err:
         print("ERROR (InstrumentoInvalido):\n  " + "\n  ".join(err), file=sys.stderr)
         sys.exit(1)

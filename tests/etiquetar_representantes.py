@@ -1,6 +1,7 @@
 """
 Tarea 26 paso (e) / Tarea 22 — el pipeline de ETIQUETADO a ciegas de los candidatos, y la tabla de
-correcciones de Santiago. Sin red y sin tocar producción.
+correcciones que trajo la revisión (otra sesión de Claude, que Santiago aprobó y reenvió; ningún humano
+revisó etiqueta por etiqueta). Sin red y sin tocar producción.
 
 Las etiquetas son el patrón de oro de `tests/medir_representantes.py`: si no describen a los candidatos
 de la captura, la medición mide otra cosa. Este módulo es cómo se producen, para que se puedan reproducir
@@ -13,12 +14,13 @@ y auditar sin leer el transcript de una sesión:
      `PROMPT_ETIQUETAR` y `PROMPT_ADJUDICAR` de este archivo, verbatim (`--prompts` los imprime). Dos
      pasadas por lote con el orden de las filas invertido, y un adjudicador para los desacuerdos, los
      faltantes y los "dudoso" de las dos pasadas. ⚠️ Las dos pasadas y el adjudicador son el MISMO modelo:
-     el acuerdo no es evidencia independiente. El control es la revisión de Santiago.
+     el acuerdo no es evidencia independiente, y la revisión que las corrigió también fue del mismo modelo.
   3. `--unir DIR --journal J --destino D` junta las etiquetas del journal del workflow en el archivo de
      etiquetas, con qué dijo cada pasada y de dónde salió la etiqueta final.
-  4. `--correcciones` aplica `CORRECCIONES` —los cambios que pidió Santiago con su evidencia— a TODAS las
-     filas del uid en los dos archivos, y reporta las filas con el mismo marcador literal que NO están en la
-     lista, sin cambiarlas: extenderlas es criterio, y el criterio es de Santiago.
+  4. `--correcciones` aplica `CORRECCIONES` —los cambios que trajo la revisión, con su evidencia— **por
+     producto** (ítem + título + marca) en los dos archivos, no por uid: los uid son por ronda y se repiten.
+     Reporta además las filas con el mismo marcador literal que NO están en la lista, sin cambiarlas:
+     extenderlas es criterio, y el criterio lo decide Santiago. Correr el modo dos veces es no-op.
 
 Desde sepa_backend/ (en Windows, con `$env:PYTHONIOENCODING='utf-8'`):
     venv\\Scripts\\python.exe -m tests.etiquetar_representantes --prompts
@@ -120,9 +122,13 @@ Reglas:
 #  LAS CORRECCIONES DE SANTIAGO — 22/09, hechas ANTES de ver la medición
 # ─────────────────────────────────────────────────────────────────
 
-# uid → (etiqueta nueva, evidencia). Se aplican a TODAS las filas de ese uid, en los dos archivos, y a las
-# del 22/09 que heredan por la unión. `marcador` es la palabra literal con la que se buscan las filas
-# hermanas que NO están en la lista: se REPORTAN, no se cambian.
+# ⚠️ **Se aplican por PRODUCTO (ítem + título), no por uid.** Los uid son por ronda de etiquetado y se
+# repiten: al sumar los 170 rechazos de las VTEX, 171 de los 2.194 uid del archivo del 14/09 pasaron a
+# apuntar a dos productos distintos, así que aplicar por uid le cambiaría la etiqueta a filas que nadie
+# revisó (lo verificó la revisión del 23/09: "Crema de leche Carrefour Classic 200 ml" comparte uid con la
+# leche de La Serenísima 2 %). El uid queda como PROCEDENCIA, en el comentario de cada fila.
+# {uid original: (etiqueta nueva, evidencia)} — el título que le corresponde se resuelve una vez, contra el
+# archivo del 14/09, y de ahí en más la corrección viaja por (ítem, título).
 CORRECCIONES = {
     "Carne picada#15": ("correcto", "el criterio decía 'dudoso hasta tener la categoría': la categoría es "
                                    "'Bovinos' y dtoCaracteristicas dice CARNE VACUNA / PICADA"),
@@ -162,7 +168,9 @@ INCONSISTENCIAS_EAN = {
         "EAN en Día, Chango Más y Carrefour dice 000. Es un caso de FORMA DE TÍTULO donde el EAN resolvería la "
         "duda: la decisión de usarlo es de Santiago.",
 }
-FUENTE_CORRECCION = "corrección de Santiago, 22/09"
+FUENTE_CORRECCION = "corrección de la revisión del 22/09 (otra sesión de Claude, aprobada por Santiago)"
+# El texto que llevaban estas filas antes del 23/09, para que `productos_corregidos` las siga reconociendo.
+FUENTES_CORRECCION = (FUENTE_CORRECCION, "corrección de Santiago, 22/09")
 # Marcadores literales por ítem: con estos se buscan las filas hermanas que quedaron fuera de la lista.
 MARCADORES = {
     "Carne picada": ("picada especial", "picada desgrasada"),
@@ -187,11 +195,13 @@ def _clave_texto(item, titulo, marca):
             re.sub(r"\s+", " ", (marca or "").strip()).lower())
 
 
-def escribir_lotes(pendientes, destino):
+def escribir_lotes(pendientes, destino, ronda=""):
     """
     `pendientes`: [{item, titulo, marca, cid}] → lotes de {LOTE} filas por ítem, con los uid asignados por
     orden alfabético de título, y las dos copias (A y B, B con el orden invertido).
+    `ronda` entra en el uid (`item@ronda#3`): sin eso los uid se repiten entre tandas y ya mordió una vez.
     """
+    tag = f"@{ronda}" if ronda else ""
     destino.mkdir(parents=True, exist_ok=True)
     unicos = {}
     for x in pendientes:
@@ -204,7 +214,7 @@ def escribir_lotes(pendientes, destino):
     for item, xs in sorted(por_item.items()):
         xs.sort(key=lambda z: z["titulo"].lower())
         for i, z in enumerate(xs):
-            z["uid"] = f"{item}#{i}"
+            z["uid"] = f"{item}{tag}#{i}"
         for k in range(0, len(xs), LOTE):
             lotes.append({"item": item, "filas": xs[k:k + LOTE]})
     for i, l in enumerate(lotes):
@@ -411,35 +421,51 @@ def rellenar(destino, escribir=False):
 #  CORRECCIONES
 # ─────────────────────────────────────────────────────────────────
 
+def productos_corregidos(doc14):
+    """
+    {(ítem, título, marca) → (etiqueta, evidencia, uid)}: qué PRODUCTO corrige cada uid. Se resuelve contra
+    las filas que ya llevan la corrección aplicada y, si no hay ninguna, contra el uid —para la primera
+    corrida—. Así una segunda corrida es idempotente aunque los uid se hayan repetido después.
+    """
+    out = {}
+    for x in doc14["candidatos"]:
+        if x.get("fuente") in FUENTES_CORRECCION:
+            out[_clave_texto(x["item"], x["titulo"], x["marca"])] = (x["etiqueta"], x.get("evidencia_extra", ""),
+                                                                     x.get("uid", ""))
+    if out:
+        return out
+    for x in doc14["candidatos"]:
+        nueva = CORRECCIONES.get(x.get("uid", ""))
+        if nueva:
+            out[_clave_texto(x["item"], x["titulo"], x["marca"])] = (nueva[0], nueva[1], x["uid"])
+    return out
+
+
 def correcciones(escribir=False):
-    """Aplica CORRECCIONES por uid en los dos archivos y reporta las filas hermanas que quedaron fuera."""
+    """Aplica CORRECCIONES por producto en los dos archivos y reporta las filas hermanas que quedaron fuera."""
     cambiadas, hermanas, docs = [], [], {}
     for destino in DESTINOS:
-        etq, doc = etiquetas(destino)
-        if doc is None:
-            continue
-        docs[destino] = doc
-        # Los uid del 14/09 y los del 22/09 son espacios distintos: la corrección viaja por el TÍTULO del
-        # uid corregido, así que primero se resuelve qué producto es cada uid en su propio archivo.
+        _etq, doc = etiquetas(destino)
+        if doc is not None:
+            docs[destino] = doc
+    corregidos = productos_corregidos(docs["14sep"])
+    for destino, doc in docs.items():
         for x in doc["candidatos"]:
-            nueva = CORRECCIONES.get(x.get("uid", ""))
-            if nueva and destino == "14sep":
-                if x["etiqueta"] != nueva[0]:
-                    cambiadas.append((destino, x["cid"], x["item"], x["titulo"], x["etiqueta"], nueva[0]))
-                    x["etiqueta"], x["evidencia_extra"], x["fuente"] = nueva[0], nueva[1], FUENTE_CORRECCION
-    # Las del 22/09: se corrigen por producto (ítem + título + marca) contra las corregidas del 14/09.
-    corregidos = {_clave_texto(x["item"], x["titulo"], x["marca"]): x
-                  for x in docs.get("14sep", {}).get("candidatos", []) if x.get("fuente") == FUENTE_CORRECCION}
-    for x in docs.get("22sep", {}).get("candidatos", []):
-        k = _clave_texto(x["item"], x["titulo"], x["marca"])
-        if k in corregidos and x["etiqueta"] != corregidos[k]["etiqueta"]:
-            cambiadas.append(("22sep", x["cid"], x["item"], x["titulo"], x["etiqueta"], corregidos[k]["etiqueta"]))
-            x["etiqueta"] = corregidos[k]["etiqueta"]
-            x["evidencia_extra"], x["fuente"] = corregidos[k]["evidencia_extra"], FUENTE_CORRECCION
+            k = _clave_texto(x["item"], x["titulo"], x["marca"])
+            if k not in corregidos:
+                continue
+            etiqueta, evidencia, uid = corregidos[k]
+            if x.get("fuente") in FUENTES_CORRECCION and x.get("fuente") != FUENTE_CORRECCION:
+                x["fuente"] = FUENTE_CORRECCION      # el texto viejo atribuía la revisión a Santiago
+            if x["etiqueta"] != etiqueta or x.get("fuente") not in FUENTES_CORRECCION:
+                if x["etiqueta"] != etiqueta:
+                    cambiadas.append((destino, x["cid"], x["item"], x["titulo"], x["etiqueta"], etiqueta))
+                x["etiqueta"], x["evidencia_extra"], x["fuente"] = etiqueta, evidencia, FUENTE_CORRECCION
+                x["uid_corregido"] = uid
     # Hermanas: mismo ítem y mismo marcador literal, sin corregir. Se reportan, NO se cambian.
     for destino, doc in docs.items():
         for x in doc["candidatos"]:
-            if x.get("fuente") == FUENTE_CORRECCION:
+            if x.get("fuente") in FUENTES_CORRECCION:
                 continue
             t = (x["titulo"] or "").lower()
             for m in MARCADORES.get(x["item"], ()):
@@ -546,7 +572,7 @@ def main_cli():
                     else pendientes_coto_profundo(cap2, et_of))
             for x in pend:
                 x["cadena"] = "Coto"
-        lotes = escribir_lotes(pend, Path(args.lotes))
+        lotes = escribir_lotes(pend, Path(args.lotes), args.fuente)
         # El JSON de los pendientes viaja al lado de los lotes: `--unir` necesita el cid, el EAN y el precio,
         # que los lotes NO llevan a propósito (el etiquetador es ciego).
         (Path(args.lotes) / "pendientes.json").write_text(json.dumps(pend, ensure_ascii=False), encoding="utf-8")

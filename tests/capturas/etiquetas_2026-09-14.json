@@ -221,7 +221,7 @@
    "frase": "Leche Clásica Mas Liviana",
    "nota": "El título no dice 'entera'. El EAN la identifica como el mismo producto que la fila #32. 'Más liviana' (2%) es la variante light de la Clásica, no descremada ni en polvo; las reglas cuentan la variante light como correcta. Etiqueta igual a #23 y #32 para que sean coherentes.",
    "evidencia_extra": "La Serenísima 2 %: el mismo caso que el azúcar light",
-   "fuente": "corrección de Santiago, 22/09",
+   "fuente": "corrección de la revisión del 22/09 (otra sesión de Claude, aprobada por Santiago)",
    "pasadas": {
     "A": "dudoso",
     "B": "dudoso"
@@ -245,7 +245,7 @@
    "frase": "Leche Clásica Mas Liviana",
    "nota": "El título no dice 'entera'. El EAN la identifica como el mismo producto que la fila #32. 'Más liviana' (2%) es la variante light de la Clásica, no descremada ni en polvo; las reglas cuentan la variante light como correcta. Etiqueta igual a #23 y #32 para que sean coherentes.",
    "evidencia_extra": "La Serenísima 2 %: el mismo caso que el azúcar light",
-   "fuente": "corrección de Santiago, 22/09",
+   "fuente": "corrección de la revisión del 22/09 (otra sesión de Claude, aprobada por Santiago)",
    "pasadas": {
     "A": "dudoso",
     "B": "dudoso"
@@ -773,7 +773,7 @@
    "frase": "Leche Entera La Serenisima Larga Vida Clásica Más Liviana",
    "nota": "El título dice 'Leche Entera'. 'Clásica Más Liviana' es la variante light (2%) de la leche fluida de vaca; las reglas cuentan la variante light como correcta. No es descremada, en polvo, chocolatada ni vegetal.",
    "evidencia_extra": "La Serenísima 2 %: el mismo caso que el azúcar light",
-   "fuente": "corrección de Santiago, 22/09",
+   "fuente": "corrección de la revisión del 22/09 (otra sesión de Claude, aprobada por Santiago)",
    "pasadas": {
     "A": "correcto",
     "B": "dudoso"
@@ -989,7 +989,7 @@
    "frase": "Leche entera larga vida La Serenísima 2 %",
    "nota": "La cadena la titula 'Leche entera'. El 2% es menos graso que la entera clásica (3%), pero es una variante light, no descremada; las reglas cuentan la variante light como correcta. Es el mismo EAN que #1 (Coto).",
    "evidencia_extra": "La Serenísima 2 %: el mismo caso que el azúcar light",
-   "fuente": "corrección de Santiago, 22/09",
+   "fuente": "corrección de la revisión del 22/09 (otra sesión de Claude, aprobada por Santiago)",
    "pasadas": {
     "A": "dudoso",
     "B": "dudoso"
@@ -5837,7 +5837,7 @@
    "frase": "Fideos sin TACC arroz spaghetti",
    "nota": "variante sin TACC, de arroz",
    "evidencia_extra": "sin TACC / de arroz, como el de maíz (#23)",
-   "fuente": "corrección de Santiago, 22/09",
+   "fuente": "corrección de la revisión del 22/09 (otra sesión de Claude, aprobada por Santiago)",
    "pasadas": {
     "A": "correcto",
     "B": "correcto"
@@ -5861,7 +5861,7 @@
    "frase": "Fideos sin tacc spaghetti",
    "nota": "variante sin TACC",
    "evidencia_extra": "sin TACC / de arroz, como el de maíz (#23)",
-   "fuente": "corrección de Santiago, 22/09",
+   "fuente": "corrección de la revisión del 22/09 (otra sesión de Claude, aprobada por Santiago)",
    "pasadas": {
     "A": "correcto",
     "B": "correcto"
@@ -5885,7 +5885,7 @@
    "frase": "Fideos Spaghetti",
    "nota": "Blue Patna: probablemente de arroz sin TACC",
    "evidencia_extra": "sin TACC / de arroz, como el de maíz (#23)",
-   "fuente": "corrección de Santiago, 22/09",
+   "fuente": "corrección de la revisión del 22/09 (otra sesión de Claude, aprobada por Santiago)",
    "pasadas": {
     "A": "correcto",
     "B": "correcto"
@@ -6509,7 +6509,7 @@
    "frase": "Fideos Spaghetti Libre De Gluten",
    "nota": "variante sin gluten",
    "evidencia_extra": "sin TACC / de arroz, como el de maíz (#23)",
-   "fuente": "corrección de Santiago, 22/09",
+   "fuente": "corrección de la revisión del 22/09 (otra sesión de Claude, aprobada por Santiago)",
    "pasadas": {
     "A": "correcto",
     "B": "correcto"
@@ -6917,7 +6917,7 @@
    "frase": "Fideos spaghetti Schar 250 g. sin TACC",
    "nota": "variante sin TACC (sin gluten), sigue siendo spaghetti seco",
    "evidencia_extra": "sin TACC / de arroz, como el de maíz (#23)",
-   "fuente": "corrección de Santiago, 22/09",
+   "fuente": "corrección de la revisión del 22/09 (otra sesión de Claude, aprobada por Santiago)",
    "pasadas": {
     "A": "correcto",
     "B": "correcto"
@@ -9269,7 +9269,7 @@
    "frase": "Azucar Cuquets 500 Gr.",
    "nota": "El título no dice el tipo (común, impalpable, terrones, decoración). El prefijo del EAN solo dice que es de la línea de Día y el precio solo no alcanza para identificarlo",
    "evidencia_extra": "Cuquets 500 g: $/100 g 138,2 contra 138,9 del común tipo A, o sea azúcar común",
-   "fuente": "corrección de Santiago, 22/09",
+   "fuente": "corrección de la revisión del 22/09 (otra sesión de Claude, aprobada por Santiago)",
    "pasadas": {
     "A": "dudoso",
     "B": "dudoso"
@@ -14933,7 +14933,7 @@
    "frase": "Yerba Mate Buen Dia 1 Kg",
    "nota": "El título no menciona hierbas ni sabor, y que Buen Día sea compuesta es una suposición de marca, no un dato. La evidencia extra (solo Chango Más, sin otro título con el mismo EAN) no lo contradice.",
    "evidencia_extra": "Buen Día: mismo criterio que La Cumbrecita",
-   "fuente": "corrección de Santiago, 22/09",
+   "fuente": "corrección de la revisión del 22/09 (otra sesión de Claude, aprobada por Santiago)",
    "pasadas": {
     "A": "dudoso",
     "B": "correcto"
@@ -14957,7 +14957,7 @@
    "frase": "Yerba Mate Buen Dia 500 G",
    "nota": "El título no menciona hierbas ni sabor, y que Buen Día sea compuesta es una suposición de marca, no un dato. La evidencia extra (solo Chango Más, sin otro título con el mismo EAN) no lo contradice.",
    "evidencia_extra": "Buen Día: mismo criterio que La Cumbrecita",
-   "fuente": "corrección de Santiago, 22/09",
+   "fuente": "corrección de la revisión del 22/09 (otra sesión de Claude, aprobada por Santiago)",
    "pasadas": {
     "A": "dudoso",
     "B": "correcto"
@@ -16997,7 +16997,7 @@
    "frase": "Yerba mate La Cumbrecita 1 kg.",
    "nota": "el título no menciona hierbas ni que sea compuesta: es yerba mate de la marca La Cumbrecita. Lo de que 'suele ser compuesta' es una suposición sobre la marca que el título no respalda.",
    "evidencia_extra": "La Cumbrecita se vende como 'Clásica con hierbas'; con Adelgamate, Cachamate y Cachamai se usó conocimiento de marca para dudar",
-   "fuente": "corrección de Santiago, 22/09",
+   "fuente": "corrección de la revisión del 22/09 (otra sesión de Claude, aprobada por Santiago)",
    "pasadas": {
     "A": "dudoso",
     "B": "correcto"
@@ -32021,7 +32021,7 @@
    "frase": "Picada Desgrasada Estancias Coto X KG",
    "nota": "El título no dice la especie: es el caso 'picada sin especie en el título' que el criterio deja como dudoso hasta tener la categoría. 'Estancias Coto' hace pensar en carne vacuna, pero eso no decide y no se resuelve.",
    "evidencia_extra": "el criterio decía 'dudoso hasta tener la categoría': la categoría es 'Bovinos' y dtoCaracteristicas dice CARNE VACUNA / PICADA",
-   "fuente": "corrección de Santiago, 22/09",
+   "fuente": "corrección de la revisión del 22/09 (otra sesión de Claude, aprobada por Santiago)",
    "pasadas": {
     "A": "dudoso",
     "B": "dudoso"
@@ -32045,7 +32045,7 @@
    "frase": "Picada Desgrasada Estancias Coto X KG",
    "nota": "El título no dice la especie: es el caso 'picada sin especie en el título' que el criterio deja como dudoso hasta tener la categoría. 'Estancias Coto' hace pensar en carne vacuna, pero eso no decide y no se resuelve.",
    "evidencia_extra": "el criterio decía 'dudoso hasta tener la categoría': la categoría es 'Bovinos' y dtoCaracteristicas dice CARNE VACUNA / PICADA",
-   "fuente": "corrección de Santiago, 22/09",
+   "fuente": "corrección de la revisión del 22/09 (otra sesión de Claude, aprobada por Santiago)",
    "pasadas": {
     "A": "dudoso",
     "B": "dudoso"
@@ -32069,7 +32069,7 @@
    "frase": "Picada Especial X KG",
    "nota": "El título no dice 'carne' ni la especie: es el caso 'picada sin especie en el título' que el criterio deja como dudoso hasta tener la categoría. No se resuelve.",
    "evidencia_extra": "ídem #15: categoría 'Bovinos', dtoCaracteristicas CARNE VACUNA / PICADA",
-   "fuente": "corrección de Santiago, 22/09",
+   "fuente": "corrección de la revisión del 22/09 (otra sesión de Claude, aprobada por Santiago)",
    "pasadas": {
     "A": "dudoso",
     "B": "dudoso"
@@ -32093,7 +32093,7 @@
    "frase": "Picada Especial X KG",
    "nota": "El título no dice 'carne' ni la especie: es el caso 'picada sin especie en el título' que el criterio deja como dudoso hasta tener la categoría. No se resuelve.",
    "evidencia_extra": "ídem #15: categoría 'Bovinos', dtoCaracteristicas CARNE VACUNA / PICADA",
-   "fuente": "corrección de Santiago, 22/09",
+   "fuente": "corrección de la revisión del 22/09 (otra sesión de Claude, aprobada por Santiago)",
    "pasadas": {
     "A": "dudoso",
     "B": "dudoso"
