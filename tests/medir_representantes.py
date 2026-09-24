@@ -1472,7 +1472,10 @@ def conteos_h1b(cap2, filas2, secs, faltantes=None):
     **La tabla de §H1b imprime SOLO desde acá y la validación (11) valida SOLO esto.** Hasta el 24/09 cada
     uno contaba por su cuenta —la tabla con `len()` inline, la (11) llamando a `fuentes_coto` de nuevo—, así
     que la (11) cuidaba la reconstrucción y no los números impresos: la revisión lo probó reintroduciendo en
-    la tabla las dos líneas del bug original y el instrumento siguió dando exit 0.
+    la tabla las dos líneas del bug original y el instrumento siguió dando exit 0. ✏️ Y hasta el 24/09 la
+    (11) miraba **una sola** de las tres columnas: `n_no24 = 0` acá dejaba `No=24` en 0 en los 20 ítems, y
+    `n_hoy = 0` dejaba la consulta de producción en 0 en los 20, con el instrumento en verde las dos veces.
+    Ahora valida las tres (M12 y M13).
     """
     salida = []
     for prod in CANASTA:
@@ -1495,14 +1498,22 @@ def validar_reconstruccion_coto(cap2, filas2, secs=None):
 
     Valida `conteos_h1b`, que es de donde §H1b imprime, y **no recalcula el total por su cuenta**: la
     versión del 23/09 volvía a llamar a `fuentes_coto`, así que nunca miraba la tabla y el bug original
-    reintroducido ahí le pasaba en verde (lo encontró la revisión del 24/09). Tres chequeos:
-      (a) por ítem, `Nrpp=48` == filas del archivo + las claves que anotó el recorte para ese ítem;
-      (b) el total == filas del archivo + `quitadas_por_seccion["profundo/Coto"]` (563);
-      (c) ninguna clave anotada por el recorte se descartó por no encontrarla en `datos` — eso bajaría un
+    reintroducido ahí le pasaba en verde (lo encontró la revisión del 24/09). ✏️ **Desde el 24/09 valida las
+    TRES columnas, no solo `Nrpp=48`**: con una sola columna cubierta, poner `n_no24 = 0` (o `n_hoy = 0`) en
+    `conteos_h1b` dejaba esa columna en 0 en los 20 ítems y el instrumento seguía dando exit 0 — mutaciones
+    M12 y M13, las dos vistas en rojo con la (11) de `8b35bc6`.
+    Cuatro chequeos:
+      (a) por ítem, `Nrpp=48` y `No=24` == filas del archivo en su sección + las claves que anotó el
+          recorte para ese ítem;
+      (b) por ítem, la consulta de producción == filas de `datos/Coto` — el recorte no le saca nada;
+      (c) el total de `Nrpp=48` == filas del archivo + `quitadas_por_seccion["profundo/Coto"]` (563);
+      (d) ninguna clave anotada por el recorte se descartó por no encontrarla en `datos` — eso bajaría un
           conteo en silencio, y en `alternativas` y `coto_no24` no lo vería ningún otro chequeo.
     """
     secs = secs or fuentes_profundas(cap2)
     prof_archivo = (cap2.get("profundo") or {}).get("Coto") or {}
+    no24_archivo = cap2.get("coto_no24") or {}
+    hoy_archivo = (cap2["datos"] or {}).get("Coto") or {}
     quit_claves = (cap2.get("__recorte") or {}).get("quitadas_claves") or {}
     faltantes = []
     conteos = conteos_h1b(cap2, filas2, secs, faltantes)
@@ -1510,12 +1521,18 @@ def validar_reconstruccion_coto(cap2, filas2, secs=None):
         return ["(11) `conteos_h1b` no devuelve los 20 ítems de CANASTA en orden: §H1b imprime desde ahí, "
                 "así que la tabla dejó de ser la canasta"]
     errores = []
-    for q, _n_hoy, n_prof, _n_no24 in conteos:
-        archivo, anotadas = len(prof_archivo.get(q) or []), len(quit_claves.get(f"profundo|Coto|{q}") or [])
-        if n_prof != archivo + anotadas:
-            errores.append(f"(11) §H1b imprime {n_prof} filas de `Nrpp=48` en {q!r} y la captura entera "
-                           f"tiene {archivo + anotadas} ({archivo} en el archivo + {anotadas} que se llevó "
-                           f"el recorte)")
+    for q, n_hoy, n_prof, n_no24 in conteos:
+        if n_hoy != len(hoy_archivo.get(q) or []):
+            errores.append(f"(11) §H1b imprime {n_hoy} filas de la consulta de producción en {q!r} y "
+                           f"`datos/Coto` tiene {len(hoy_archivo.get(q) or [])}")
+        for columna, n, archivo_de, seccion in (("Nrpp=48", n_prof, prof_archivo, "profundo"),
+                                                ("No=24", n_no24, no24_archivo, "coto_no24")):
+            archivo = len(archivo_de.get(q) or [])
+            anotadas = len(quit_claves.get(f"{seccion}|Coto|{q}") or [])
+            if n != archivo + anotadas:
+                errores.append(f"(11) §H1b imprime {n} filas de `{columna}` en {q!r} y la captura entera "
+                               f"tiene {archivo + anotadas} ({archivo} en el archivo + {anotadas} que se "
+                               f"llevó el recorte)")
     total = sum(n_prof for _q, _h, n_prof, _n in conteos)
     en_captura = sum(len(v) for v in prof_archivo.values())
     quitadas = ((cap2.get("__recorte") or {}).get("quitadas_por_seccion") or {}).get("profundo/Coto", 0)
@@ -1600,7 +1617,8 @@ def informe_coto_profundo(cap2, filas2, et_of):
 
     # ✏️ 23/09, revisión: los 0 filas por ítem y por request, y qué pasa si Coto trae 48 en vez de 24.
     # ✏️ 24/09, tercera revisión: la tabla imprime SOLO lo que devuelve `conteos_h1b` — no cuenta nada
-    # inline — y la validación (11) valida ESOS números. Hasta el 24/09 la tabla contaba por un lado y la
+    # inline — y la validación (11) valida ESOS números, **las tres columnas** desde este commit. Hasta el
+    # 24/09 la tabla contaba por un lado y la
     # (11) por otro (llamaba a `fuentes_coto` de nuevo), así que reintroducir acá las dos líneas del bug
     # original —`len()` sobre la captura recortada, `Nrpp=48` en 258 y 0 en ocho ítems que sí traen filas—
     # seguía dando exit 0. Lo encontró la revisión; la mutación M10 son esas dos líneas.
@@ -1989,11 +2007,12 @@ def main_cli():
     print("  (7) con umbral 0,47 Coto/Azúcar se queda sin representante; sin las medialunas, Carrefour/Manteca")
     print(f"      pasa a {sigue[0][:50]!r} (${sigue[2]:,.0f}), etiquetado {sigue[1]!r}")
     print(f"  (8) {estado_e}")
-    print("  (9) las mutaciones las corre `python -m tests.medir_representantes_mutaciones`: M1–M11 en rojo")
+    print("  (9) las mutaciones las corre `python -m tests.medir_representantes_mutaciones`: M1–M13 en rojo")
     print(" (10) la captura nueva está completa, sin ítems vacíos fuera de VACIOS_CONOCIDOS, y el lazo la")
     print("      corre igual que producción · (3b) las etiquetas de fuentes profundas describen filas reales")
-    print(" (11) los números que IMPRIME §H1b cuentan sobre la captura ENTERA: `conteos_h1b` reconstruye"
-          " lo que se llevó el recorte, por ítem y en el total, sin descartar claves en silencio")
+    print(" (11) los números que IMPRIME §H1b cuentan sobre la captura ENTERA, en las TRES columnas:"
+          " `conteos_h1b` reconstruye lo que se llevó el recorte, por ítem y en el total, sin descartar"
+          " claves en silencio")
 
     informe_aceptacion(bases)
     informe_cobertura_correcta(filas, etq)

@@ -6,7 +6,7 @@ cosa que el instrumento dice cuidar, y exige que salga con error. Fuera del CI, 
 producción: es el guard del guard.
 
 Cada mutación tiene que dar **exit 1** y el control sin mutar, **exit 0**. Si alguna no se detecta, este
-script sale con exit 1 y dice cuál. Son M1–M11.
+script sale con exit 1 y dice cuál. Son M1–M13.
 
 ⚠️ Una mutación tiene que romper **lo que el informe imprime**, no una función vecina que se le parezca:
 M10 rompía `fuentes_coto` y no la tabla de §H1b, así que el bug original de §H1b, reintroducido, pasaba en
@@ -240,6 +240,54 @@ def m11():
     return MR.validar_reconstruccion_coto(c2, filas2)
 
 
+def columna_en_cero(cap2, filas2, i):
+    """`conteos_h1b` con la columna `i` de la tupla (q, n_hoy, n_prof, n_no24) forzada a 0."""
+    viejo = MR.conteos_h1b
+
+    def mutado(c2, f2, secs, faltantes=None):
+        return [t[:i] + (0,) + t[i + 1:] for t in viejo(c2, f2, secs, faltantes)]
+
+    MR.conteos_h1b = mutado
+    try:
+        return MR.validar_reconstruccion_coto(cap2, filas2)
+    finally:
+        MR.conteos_h1b = viejo
+
+
+def m12():
+    """
+    `conteos_h1b` con la columna `No=24` en 0 → (11).
+
+    El caso: un revisor puso `n_no24 = 0` y el instrumento siguió dando **exit 0**, con `No=24` en 0 en los
+    20 ítems, porque la (11) validaba solo la columna `Nrpp=48`. Es la misma forma de las otras dos: un
+    número impreso que nadie compara contra la captura. Desde el 24/09 la (11) valida las tres columnas.
+    """
+    if not NUEVA:
+        return ["(11) no se puede probar: falta la captura nueva"]
+    cap2, filas2, _extra = NUEVA
+    if (motivo := recorte_de(cap2)):
+        return [motivo]
+    return columna_en_cero(cap2, filas2, 3)
+
+
+def m13():
+    """
+    `conteos_h1b` con la columna de la consulta de producción en 0 → (11).
+
+    La tercera columna del mismo agujero. Con `n_hoy = 0` §H1b dice que producción devolvió 0 filas en los
+    **20** ítems y las notas de la tabla lo repiten ("producción devuelve 0 y los otros requests traen
+    filas"), que es justo el hallazgo de §H1b: el informe afirmaría un 0 que la captura desmiente. Antes del
+    commit del 24/09 no lo veía nada — ni la (11), que solo miraba `Nrpp=48`, ni la (10), que mira la
+    captura y no la tabla.
+    """
+    if not NUEVA:
+        return ["(11) no se puede probar: falta la captura nueva"]
+    cap2, filas2, _extra = NUEVA
+    if (motivo := recorte_de(cap2)):
+        return [motivo]
+    return columna_en_cero(cap2, filas2, 1)
+
+
 PRUEBAS = [
     ("Control, sin mutación", lambda: corrida(ETQ0), True),
     ("M1 la mermelada de Coto etiquetada 'correcto'", lambda: con_etiquetas(m1), False),
@@ -253,13 +301,15 @@ PRUEBAS = [
     ("M9 §H sin deduplicar (control, no validación)", m9, False),
     ("M10 §H1b contado sobre la captura recortada (11)", m10, False),
     ("M11 `fuentes_coto` descarta una clave del recorte (11)", m11, False),
+    ("M12 `conteos_h1b` con la columna No=24 en 0 (11)", m12, False),
+    ("M13 `conteos_h1b` con la columna de producción en 0 (11)", m13, False),
 ]
 
 
 def main_cli():
     sys.stdout.reconfigure(encoding="utf-8")
     print(f"Representante mutado: {REP_MALO} · fila no representante: {NO_REP}")
-    print(f"Captura nueva: {'sí' if NUEVA else 'NO (M7, M8, M9, M10 y M11 no se pueden probar)'}\n")
+    print(f"Captura nueva: {'sí' if NUEVA else 'NO (M7 a M13 no se pueden probar)'}\n")
     malas = 0
     for nombre, fn, espera_verde in PRUEBAS:
         errores = fn()
