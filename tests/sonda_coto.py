@@ -333,22 +333,55 @@ def hora_hhmm(txt):
     return h, m
 
 
+def proxima_ocurrencia(hm, ahora):
+    """
+    La próxima vez que el reloj marque HH:MM, contada desde `ahora`. Si ya pasó hoy, es mañana.
+
+    Recibe `ahora` en vez de leer el reloj **a propósito**: es lo que permite probar el cálculo con
+    relojes inventados en vez de esperar seis horas. Mientras vivía adentro de `esperar_hasta`, al
+    lado del `sleep`, no había forma de verificarlo sin dormir de verdad —o sea, nunca—.
+    `tests/sonda_coto_inicio.py` la corre con cinco relojes.
+
+    ⚠️ `<=` y no `<`: a las 06:30:00 clavadas, `--inicio 06:30` espera hasta MAÑANA. `--inicio` es el
+    comienzo de esa hora, y si el reloj ya llegó, la hora ya pasó. Es lo mismo que pasa lanzando a
+    las 06:30:05, y coherente con el caso de las 06:31.
+    """
+    h, m = hm
+    objetivo = ahora.replace(hour=h, minute=m, second=0, microsecond=0)
+    if objetivo <= ahora:
+        objetivo += timedelta(days=1)
+    return objetivo
+
+
+def espera_legible(segundos):
+    """`Xh Ym`, truncando a minutos. Nunca negativo."""
+    minutos = max(0, int(segundos // 60))
+    return f"{minutos // 60}h {minutos % 60}m"
+
+
+def linea_ronda1(hm, ahora):
+    """
+    La primera línea que se imprime al lanzar: cuándo arranca la ronda 1 y cuánto falta.
+
+    Sin `--inicio` la ronda 1 es ahora y la espera es `0h 0m`. Se imprime igual, porque el punto es
+    poder verificarlo al darle enter sin depender de un resumen escrito después.
+    """
+    objetivo = proxima_ocurrencia(hm, ahora) if hm else ahora
+    return (f"ronda 1: {objetivo:%Y-%m-%d %H:%M} "
+            f"(espera {espera_legible((objetivo - ahora).total_seconds())})")
+
+
 def esperar_hasta(hm):
     """
-    Duerme hasta la próxima HH:MM local. Si esa hora ya pasó hoy, es la de mañana.
+    Duerme hasta la próxima HH:MM local.
 
     Existe para poder dejar la corrida lanzada y que arranque sola a las 06:30, sin que nadie tenga
     que estar despierto. El nombre del archivo lo decide la ronda 1, no el lanzamiento.
     """
-    h, m = hm
-    ahora = datetime.now()
-    objetivo = ahora.replace(hour=h, minute=m, second=0, microsecond=0)
-    if objetivo <= ahora:
-        objetivo += timedelta(days=1)
-    espera = (objetivo - ahora).total_seconds()
-    print(f"esperando hasta {objetivo:%Y-%m-%d %H:%M} para la ronda 1 "
-          f"({espera / 3600:.2f} h desde ahora, {ahora:%H:%M:%S})\n", flush=True)
-    time.sleep(espera)
+    objetivo = proxima_ocurrencia(hm, datetime.now())
+    espera = (objetivo - datetime.now()).total_seconds()
+    if espera > 0:
+        time.sleep(espera)
 
 
 def replay(ruta):
@@ -508,14 +541,28 @@ def main_cli():
         replay(args.replay)
         return
 
+    # PRIMERA línea, antes que nada: cuándo arranca la ronda 1 y cuánto falta. Se imprime siempre,
+    # con `--inicio` y sin él, para poder verificarlo al darle enter.
+    n_consultas = sum(len(c) for _b, c in brazos())
+    # `flush` en las tres: con `--inicio` lo que sigue es un sleep de horas, y sin flush estas
+    # líneas se quedan en el buffer hasta que algo más las empuje. Redirigiendo a un archivo
+    # (`> log.txt`) el buffer es de bloque y no se ve NADA durante la espera.
+    print(linea_ronda1(args.inicio, datetime.now()), flush=True)
+    print(f"{n_consultas} consultas × {args.rondas} ronda(s) = {n_consultas * args.rondas} requests, "
+          f"1 cada {args.pausa} s, rondas cada {args.intervalo} min", flush=True)
+
     # Antes de dormir hasta `--inicio`, no después: si el árbol se toca durante la espera, lo que
     # queda anotado es el código con el que se lanzó, que es lo que se quiere saber.
     git = estado_git()
+    if git.get("commit"):
+        print(f"sepa_backend {git['commit']}"
+              + ("  ⚠️ árbol SUCIO" if git["sucio"] else "  (árbol limpio)"), flush=True)
+    else:
+        print(f"⚠️ sin estado de git: {git.get('error')}", flush=True)
 
     if args.inicio:
         esperar_hasta(args.inicio)
 
-    n_consultas = sum(len(c) for _b, c in brazos())
     # `__fecha` y el nombre del archivo salen de ACÁ, ya pasada la espera: son la hora de la ronda 1
     # y no la del lanzamiento. Una corrida lanzada a las 22:00 con `--inicio 06:30` es la captura de
     # las 06:30.
@@ -542,12 +589,6 @@ def main_cli():
         RAIZ / "tests" / "capturas" / f"sonda_coto{marca}_{arranque:%Y-%m-%d_%H%M}.json")
     ruta.parent.mkdir(parents=True, exist_ok=True)
 
-    print(f"{n_consultas} consultas × {args.rondas} ronda(s) = {n_consultas * args.rondas} requests, "
-          f"1 cada {args.pausa} s, rondas cada {args.intervalo} min")
-    if git.get("commit"):
-        print(f"sepa_backend {git['commit']}" + ("  ⚠️ árbol SUCIO" if git["sucio"] else "  (árbol limpio)"))
-    else:
-        print(f"⚠️ sin estado de git: {git.get('error')}")
     print(f"escribiendo a {ruta.name} al final de cada ronda\n")
     previos: dict = {}
     for n in range(1, args.rondas + 1):
