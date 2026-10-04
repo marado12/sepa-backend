@@ -1,0 +1,226 @@
+{
+ "__que": "Snapshot PREVIO de la alarma de Coto vacío (Tarea 22, Abierto 2, Etapa 2): lo que devuelve el código de antes del cambio para la canasta de abajo, con Coto contestando el body anómalo del 24/09 para Fideos spaghetti. test_coto_vacio.py exige que después del cambio precios y meta sigan iguales, y que el Resultado combinado no cambie.",
+ "__generado": "2026-10-04T13:08:08",
+ "__commit": "6c385b5855b36acba8c90ab9a81eb8e2ed8546b9",
+ "__fuentes_py_sha1": "0e2f21d58c4c7ec5f2301f4bafe98155ed2c4a86",
+ "__comando": "venv\\Scripts\\python.exe -m tests.arnes_coto_vacio --generar",
+ "__cadenas": [
+  "Carrefour",
+  "Chango Más",
+  "Coto",
+  "Día",
+  "Vea"
+ ],
+ "__canasta": [
+  {
+   "nombre": "Leche entera",
+   "cantidad": 4,
+   "unidad": "litro",
+   "categoria": "Lácteos",
+   "palabras_clave": [
+    "leche entera"
+   ]
+  },
+  {
+   "nombre": "Fideos spaghetti",
+   "cantidad": 2,
+   "unidad": "kg",
+   "categoria": "Secos",
+   "palabras_clave": [
+    "fideos spaghetti"
+   ]
+  }
+ ],
+ "__nota_vtex_fideos": "SINTÉTICO: las 4 VTEX contestan [] para 'Fideos spaghetti'. No hay fixture VTEX de fideos; [] es la forma de 'sin resultados' de VTEX y no se capturó para esta consulta.",
+ "__nota_coto": "Coto: 'Leche entera' rearmada de coto_estructura_real.json (09/09) con a_producto_coto; 'Fideos spaghetti' es el body anómalo REAL de la captura del 24/09, r8 (coto_body_anomalo_fideos_2026-09-24.json).",
+ "__nota_vtex_leche": "Las 4 VTEX: 'Leche entera' de sus fixtures reales del 09/09, con a_producto_vtex.",
+ "precios": [
+  [
+   "Carrefour",
+   "Leche entera",
+   {
+    "precio_min": 2529.0,
+    "precio_por_100u": {
+     "valor": 252.9,
+     "tipo": "volumen",
+     "label": "$/100ml",
+     "desc_ganadora": "Leche entera larga vida Ilolay 1 l.",
+     "cantidad_base": 1000.0,
+     "precio_base": 2.529,
+     "unidad_base": "ml",
+     "fuente_contenido": "nombre"
+    },
+    "precio_lista": null,
+    "descuento_pct": null,
+    "promos": [
+     "Tarjeta Carrefour 15%"
+    ],
+    "ean": "7790787002528",
+    "match_score": 0.532,
+    "origen": "vtex",
+    "envases": 4.0,
+    "sin_elegible": false
+   }
+  ],
+  [
+   "Chango Más",
+   "Leche entera",
+   {
+    "precio_min": 1949.0,
+    "precio_por_100u": {
+     "valor": 194.9,
+     "tipo": "volumen",
+     "label": "$/100ml",
+     "desc_ganadora": "Leche Entera Casanto 1 L",
+     "cantidad_base": 1000.0,
+     "precio_base": 1.949,
+     "unidad_base": "ml",
+     "fuente_contenido": "nombre"
+    },
+    "precio_lista": null,
+    "descuento_pct": null,
+    "promos": [],
+    "ean": "7790742192301",
+    "match_score": 0.607,
+    "origen": "vtex",
+    "envases": 4.0,
+    "sin_elegible": false
+   }
+  ],
+  [
+   "Coto",
+   "Leche entera",
+   {
+    "precio_min": 1899.0,
+    "precio_por_100u": {
+     "valor": 189.9,
+     "tipo": "volumen",
+     "label": "$/100ml",
+     "desc_ganadora": "Leche Entera COTO Sachet 1 L",
+     "cantidad_base": 1000.0,
+     "precio_base": 1.899,
+     "unidad_base": "ml",
+     "fuente_contenido": "nombre"
+    },
+    "precio_lista": null,
+    "descuento_pct": null,
+    "promos": [],
+    "ean": "7798039600058",
+    "match_score": 0.56,
+    "origen": "coto",
+    "envases": 4.0,
+    "sin_elegible": false
+   }
+  ],
+  [
+   "Día",
+   "Leche entera",
+   {
+    "precio_min": 1790.0,
+    "precio_por_100u": {
+     "valor": 179.0,
+     "tipo": "volumen",
+     "label": "$/100ml",
+     "desc_ganadora": "Leche Entera DIA Sachet 1 Lt.",
+     "cantidad_base": 1000.0,
+     "precio_base": 1.79,
+     "unidad_base": "ml",
+     "fuente_contenido": "nombre"
+    },
+    "precio_lista": null,
+    "descuento_pct": null,
+    "promos": [],
+    "ean": "8480017286291",
+    "match_score": 0.56,
+    "origen": "vtex",
+    "envases": 4.0,
+    "sin_elegible": false
+   }
+  ],
+  [
+   "Vea",
+   "Leche entera",
+   {
+    "precio_min": 2390.0,
+    "precio_por_100u": {
+     "valor": 239.0,
+     "tipo": "volumen",
+     "label": "$/100ml",
+     "desc_ganadora": "Leche Entera 1 Lts Cuisine y Co",
+     "cantidad_base": 1000.0,
+     "precio_base": 2.39,
+     "unidad_base": "ml",
+     "fuente_contenido": "nombre"
+    },
+    "precio_lista": null,
+    "descuento_pct": null,
+    "promos": [],
+    "ean": "7792052175609",
+    "match_score": 0.607,
+    "origen": "vtex",
+    "envases": 4.0,
+    "sin_elegible": false
+   }
+  ]
+ ],
+ "meta": {
+  "origen_precios": "online",
+  "cadenas_consultadas": [
+   "Carrefour",
+   "Chango Más",
+   "Día",
+   "Vea",
+   "Coto"
+  ],
+  "cadenas_fallidas": {},
+  "cobertura_cadenas_pct": 100.0,
+  "productos_sin_match": [
+   "Fideos spaghetti"
+  ],
+  "productos_con_precio": 1,
+  "productos_pedidos": 2,
+  "detalle_match": {
+   "Leche entera": {
+    "cadenas_con_precio": [
+     "Carrefour",
+     "Chango Más",
+     "Coto",
+     "Día",
+     "Vea"
+    ],
+    "mejor_score": 0.607
+   }
+  },
+  "aviso": "No encontramos precio para: Fideos spaghetti."
+ },
+ "resultados": {
+  "Leche entera": {
+   "parcial": false,
+   "cobertura_pct": 100.0,
+   "aviso": null,
+   "fallidas": {},
+   "consultadas": [
+    "Carrefour",
+    "Chango Más",
+    "Día",
+    "Vea",
+    "Coto"
+   ],
+   "n_ofertas": 90
+  },
+  "Fideos spaghetti": {
+   "parcial": false,
+   "cobertura_pct": 100.0,
+   "aviso": null,
+   "fallidas": {},
+   "consultadas": [
+    "Carrefour",
+    "Chango Más",
+    "Día",
+    "Vea",
+    "Coto"
+   ],
+   "n_ofertas": 0
+  }
+ }
+}

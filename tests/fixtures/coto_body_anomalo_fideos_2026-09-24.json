@@ -1,0 +1,18 @@
+{
+ "__origen": "tests/capturas/sonda_coto_2026-09-24_0343.json → bodies[2] y su medición",
+ "__captura": "sonda_coto_2026-09-24_0343.json",
+ "__ronda": 8,
+ "__brazo": "canasta",
+ "__consulta": "Fideos spaghetti",
+ "__ts": "2026-09-24T07:28:54",
+ "__status": 200,
+ "__bytes": 1492,
+ "__ms": 63,
+ "__registros": 0,
+ "__ofertas": 0,
+ "__total_registrado": null,
+ "__sha1": "8fbc146855c8",
+ "__nota": "ANÓMALO. La forma del 24/09: `contents: []` (no hubo búsqueda) y sin `totalNumRecs`, así que la sonda registró total=? (None). Es uno de los 5 ceros de canasta/positivo de la ventana r8/r9 (07:28–08:02).",
+ "__como": "`body` es el `r.text` que guardó la sonda, tal cual. Codificado en UTF-8 da exactamente los `__bytes` del `r.content` medido, y su sha1 (12 primeros) es `__sha1`: lo verifica test_coto_vacio.py contra la captura.",
+ "body": "{\"contents\":[],\"@type\":\"PageSlot\",\"atg:currentSiteProductionURL\":\"/sitios/cdigi\",\"endeca:contentPath\":\"/categoria\",\"contentPaths\":[\"/content/NuevoSitio/Catalogo\"],\"canonicalLink\":{\"contentPath\":\"/categoria\",\"@class\":\"com.endeca.infront.cartridge.model.NavigationAction\",\"label\":\"\",\"navigationState\":\"?Nf=product.endDate%7CGTEQ+1.790208E12%7C%7Cproduct.startDate%7CLTEQ+1.790208E12&Nr=AND%28product.sDisp_200%3A1004%2Cproduct.language%3Aespa%C3%B1ol%2COR%28product.siteId%3ACotoDigital%29%29&Ntt=Fideos+spaghetti\",\"siteRootPath\":\"/pages\",\"siteState\":{\"@class\":\"com.endeca.infront.site.model.SiteState\",\"contentPath\":\"/categoria\",\"matchedUrlPattern\":null,\"properties\":{},\"siteDefinition\":{\"@class\":\"com.endeca.infront.site.model.SiteDefinition\",\"displayName\":\"Coto Digital (Integral)\",\"filterStateConfiguration\":null,\"id\":\"/cdigi\",\"patterns\":[\"/cdigi\"],\"urlPattern\":\"/cdigi\"},\"siteId\":\"/cdigi\",\"validSite\":true}},\"ruleLimit\":\"1\",\"templateIds\":[],\"templateTypes\":[\"Page\"],\"endeca:siteState\":{\"@class\":\"com.endeca.infront.site.model.SiteState\",\"contentPath\":\"/categoria\",\"matchedUrlPattern\":null,\"properties\":{},\"siteDefinition\":{\"@class\":\"com.endeca.infront.site.model.SiteDefinition\",\"displayName\":\"Coto Digital (Integral)\",\"filterStateConfiguration\":null,\"id\":\"/cdigi\",\"patterns\":[\"/cdigi\"],\"urlPattern\":\"/cdigi\"},\"siteId\":\"/cdigi\",\"validSite\":true},\"name\":\"Static Page Slot\",\"endeca:auditInfo\":{\"ecr:resourcePath\":\"/pages/cdigi/categoria\",\"ecr:innerPath\":null},\"endeca:siteRootPath\":\"/pages\"}"
+}
