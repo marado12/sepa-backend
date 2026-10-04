@@ -81,10 +81,17 @@ class Resultado:
     `parcial` es lo que el frontend necesita para avisarle al usuario que está
     viendo una comparación incompleta, en vez de mostrarle un óptimo mentiroso
     calculado sobre la mitad de las cadenas.
+
+    `vacias` son las cadenas que contestaron bien (200) y sin ninguna oferta: hoy,
+    solo Coto (Tarea 22, Abierto 2). Va APARTE de `fallidas` a propósito: no cambia
+    `parcial`, `cobertura_pct` ni `aviso`, ni lo que llega a /api/comparar. Es una
+    alarma, no una decisión — si un vacío cuenta como caída lo van a decir la línea
+    `[coto-vacio]` del log y la sonda.
     """
     ofertas: list[Oferta] = field(default_factory=list)
     fallidas: dict[str, str] = field(default_factory=dict)   # cadena -> motivo
     consultadas: list[str] = field(default_factory=list)
+    vacias: dict[str, str] = field(default_factory=dict)     # cadena -> detalle
 
     @property
     def parcial(self) -> bool:
@@ -360,6 +367,11 @@ class FuenteVTEX:
 #  COTO — no es VTEX (Oracle/Endeca), formato propio
 # ─────────────────────────────────────────────────────────────────
 
+def _o_signo(v):
+    """Un número para el log, o "?" si no se sabe: la convención de `tests/sonda_coto.py`."""
+    return "?" if v is None else v
+
+
 class FuenteCoto:
     """
     Coto no corre VTEX. Endpoint verificado el 09/09/2026:
@@ -382,6 +394,7 @@ class FuenteCoto:
             res.consultadas = []
             return res
         try:
+            t0 = time.monotonic()
             r = requests.get(
                 self.BASE,
                 params={"Ntt": query, "format": "json"},
@@ -389,9 +402,13 @@ class FuenteCoto:
                 timeout=self.timeout,
                 allow_redirects=True,
             )
+            ms = round((time.monotonic() - t0) * 1000)
             r.raise_for_status()
-            for of in self._parsear(r.json()):
+            data = r.json()
+            for of in self._parsear(data):
                 res.ofertas.append(of)
+            if not res.ofertas:
+                res.vacias["Coto"] = self._avisar_vacio(query, r, data, len(res.ofertas), ms)
         except Exception as e:                        # noqa: BLE001
             res.fallidas["Coto"] = f"{type(e).__name__}: {str(e)[:120]}"
             log.warning("[coto] falló: %s", e)
@@ -433,6 +450,51 @@ class FuenteCoto:
 
         recorrer(data)
         return encontrado
+
+    @staticmethod
+    def _total_endeca(data) -> Optional[int]:
+        """
+        `totalNumRecs`: el total que declara Endeca, no la página de 24. None si no está.
+
+        Copia de `total_endeca` de `tests/sonda_coto.py` (:131-149), porque producción no importa
+        de `tests/`. `test_coto_vacio.py` la corre sobre los bodies que guardó la sonda, contra el
+        total que la sonda registró con la suya.
+        """
+        encontrado = []
+
+        def recorrer(nodo):
+            if encontrado:
+                return
+            if isinstance(nodo, dict):
+                if isinstance(nodo.get("totalNumRecs"), int):
+                    encontrado.append(nodo["totalNumRecs"])
+                    return
+                for v in nodo.values():
+                    recorrer(v)
+            elif isinstance(nodo, list):
+                for v in nodo:
+                    recorrer(v)
+
+        recorrer(data)
+        return encontrado[0] if encontrado else None
+
+    def _avisar_vacio(self, query: str, r, data, ofertas: int, ms: int) -> str:
+        """
+        Coto contestó 200 y no salió ninguna oferta (Tarea 22, Abierto 2). Deja UNA línea WARNING y
+        devuelve el detalle que va a `vacias`.
+
+        La línea es para separar, mirando el log, los dos vacíos que hoy se ven iguales. MEDIDO el
+        24/09: el anómalo es `contents: []` sin `totalNumRecs` (total=?, ~1,5 KB, 63–78 ms); el
+        legítimo, `records: []` con `totalNumRecs: 0` (total=0, ~173 KB, ~150 ms). `records` es lo que
+        encuentra `_hallar_records`, contado solo acá: 0 es "no vino nada", y más de 0 con 0 ofertas
+        es "vino y `_parsear` lo descartó entero", la forma del bug del 09/09.
+        """
+        records = len(self._hallar_records(data))
+        total = self._total_endeca(data)
+        log.warning("[coto-vacio] q=%s status=%s bytes=%s records=%s ofertas=%s total=%s ms=%s",
+                    query, r.status_code, len(r.content), _o_signo(records), ofertas,
+                    _o_signo(total), ms)
+        return f"HTTP {r.status_code} sin ofertas (records={_o_signo(records)}, total={_o_signo(total)})"
 
     @classmethod
     def _parsear(cls, data) -> list[Oferta]:
@@ -529,6 +591,7 @@ class FuenteCompuesta:
                 continue
             total.ofertas.extend(r.ofertas)
             total.fallidas.update(r.fallidas)
+            total.vacias.update(r.vacias)
             for c in r.consultadas:
                 if c not in total.consultadas:
                     total.consultadas.append(c)
