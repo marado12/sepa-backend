@@ -72,6 +72,28 @@ MUTACIONES = [
      "nuevo": ('res.vacias["Coto"] = self._avisar_vacio(query, r, data, len(res.ofertas), ms)\n'
                '                res.fallidas["Coto"] = res.vacias["Coto"]\n'),
      "cae": "test_no_regresion_meta", "linea": "assert {k: meta[k] for k in claves} =="},
+    {"id": "M-H", "que": "`_total_endeca` mira si `totalNumRecs` es verdadero, no si es int: el 0 se pierde",
+     "archivo": "fuentes.py", "modulo": "fuentes",
+     "viejo": 'if isinstance(nodo.get("totalNumRecs"), int):',
+     "nuevo": 'if nodo.get("totalNumRecs"):',
+     "cae": "test_zzqxw_da_total_0_nunca_signo", "linea": 'assert m["total"] == "0"'},
+    {"id": "M-I", "que": "FuenteVTEX anota en `vacias` la cadena que contesta 200 con []",
+     "archivo": "fuentes.py", "modulo": "fuentes",
+     "viejo": ("                for p in productos:\n"
+               "                    of = self._a_oferta(cadena, p)\n"),
+     "nuevo": ("                if not productos:\n"
+               '                    res.vacias[cadena] = "HTTP 200 sin ofertas"\n'
+               "                for p in productos:\n"
+               "                    of = self._a_oferta(cadena, p)\n"),
+     "cae": "test_compuesta_propaga_vacias", "linea": "assert vtex.vacias == {}"},
+    {"id": "M-J", "que": "el arnés entrega alterado en memoria el body de Huevos (un espacio al final)",
+     "archivo": "tests/arnes_coto_vacio.py", "modulo": "tests.arnes_coto_vacio",
+     "viejo": '    return json.loads(ruta.read_text(encoding="utf-8"))\n',
+     "nuevo": ('    fx = json.loads(ruta.read_text(encoding="utf-8"))\n'
+               '    if ruta == BODY_HUEVOS:\n'
+               '        fx["body"] += " "\n'
+               '    return fx\n'),
+     "cae": "test_las_fixtures_son_los_bodies_de_las_capturas", "linea": 'assert fx["body"] == bodies[0]["body"]'},
     {"id": "M-R", "que": "el arnés sin el mock de una VTEX (Vea)",
      "archivo": "tests/arnes_coto_vacio.py", "modulo": "tests.arnes_coto_vacio",
      "viejo": 'for c in CADENAS if c != "Coto"}',
