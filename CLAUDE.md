@@ -43,7 +43,7 @@ de sucursales tenga Vea a ~1,5 km de Junín (regresión del problema abierto #2)
 
 | Archivo | Qué es |
 |---|---|
-| `main.py` | **2.986 líneas, 131 KB.** La app entera: descarga del SEPA, matching, optimizador y los 26 endpoints. Es el archivo más pesado del proyecto — leé por partes, no entero. |
+| `main.py` | **3.603 líneas, 131 KB.** La app entera: descarga del SEPA, matching, optimizador y los 26 endpoints. Es el archivo más pesado del proyecto — leé por partes, no entero. |
 | `fuentes.py` | `FuenteVTEX`, `FuenteCoto`, `FuenteCompuesta`. Aislamiento de fallos por cadena. Acá vivían los 3 bugs de datos: **corregidos en el commit `4523893`, todavía sin verificar corriendo.** Los comentarios del archivo documentan cada fix y por qué — leelos antes de tocarlo. |
 | `precios_vtex.py` | Matching y traducción a la forma que consume el optimizador. `UMBRAL_MATCH = 0.45`. |
 | `sucursales.py` | `cadenas_cerca(lat, lon, radio)`. **stdlib puro, sin pandas — el CI lo verifica.** Existe para sobrevivir a que el pipeline de parquet esté roto. No le agregues imports pesados. |
