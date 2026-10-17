@@ -20,6 +20,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from tests import cache_temporal
+cache_temporal.fijar()    # antes de importar main: main.py:38-39 lee CACHE_DIR y hace makedirs al importarse
 import main
 from precios_vtex import UMBRAL_MATCH, precio_unitario, puntuar
 from tests.evaluar_matching import CANASTA, cargar
@@ -270,6 +272,11 @@ def test_el_snapshot_cubre_todas_las_combinaciones():
     assert set(GANADORES_ESPERADOS) == set(ganador), (
         f"faltan o sobran combinaciones en el snapshot: "
         f"{set(GANADORES_ESPERADOS) ^ set(ganador)}")
+
+
+def test_aislado_del_cache_real():
+    """main corre contra un temporal propio, no contra /tmp/sepa_cache (tests/cache_temporal.py)."""
+    cache_temporal.afirmar_aislado(main)
 
 
 if __name__ == "__main__":

@@ -22,6 +22,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from tests import cache_temporal
+cache_temporal.fijar()    # antes de importar main: main.py:38-39 lee CACHE_DIR y hace makedirs al importarse
 import main
 import precios_vtex
 from precios_vtex import buscar_precios_online, envases_a_comprar, puntuar
@@ -391,6 +393,11 @@ def test_piso_y_brecha_por_cadena_con_faltantes():
         assert pct >= PISO_CUBRE, f"{c}: {cubre}/{en_total} filas cubren lo pedido ({pct:.1f}%)"
     pcts = [x[4] for x in m.values()]
     assert max(pcts) - min(pcts) <= BRECHA_MAX, f"brecha {max(pcts) - min(pcts):.1f} puntos"
+
+
+def test_aislado_del_cache_real():
+    """main corre contra un temporal propio, no contra /tmp/sepa_cache (tests/cache_temporal.py)."""
+    cache_temporal.afirmar_aislado(main)
 
 
 if __name__ == "__main__":

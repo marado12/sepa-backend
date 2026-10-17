@@ -25,6 +25,8 @@ from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from tests import cache_temporal
+cache_temporal.fijar()    # antes de importar main: main.py:38-39 lee CACHE_DIR y hace makedirs al importarse
 import main
 from precios_vtex import _UNIDAD_SIN_CONTENIDO, _precio_por_100u
 from tests import medir_metrica_vivo as instrumento
@@ -634,6 +636,11 @@ def test_el_pack_pelado_sin_decision_no_se_tocó():
             if not (pu and pu["tipo"] == tipo and _cerca(pu["cantidad_base"], base)):
                 fallos.append(f"{c}: {t!r} → {_txt(pu)} (se esperaba sin cambios: {tipo} {base})")
     assert not fallos, "cambió sin que nadie decidiera la forma 'pack N' pelada:\n   " + "\n   ".join(fallos)
+
+
+def test_aislado_del_cache_real():
+    """main corre contra un temporal propio, no contra /tmp/sepa_cache (tests/cache_temporal.py)."""
+    cache_temporal.afirmar_aislado(main)
 
 
 if __name__ == "__main__":

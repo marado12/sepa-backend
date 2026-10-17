@@ -7,12 +7,14 @@ from datetime import datetime, timedelta
 
 CACHE = tempfile.mkdtemp(prefix="sepa_test_")
 os.environ["CACHE_DIR"] = CACHE
+os.environ["PRECIOS_MANUALES_PATH"] = os.path.join(CACHE, "precios_manuales.json")
 os.environ["SEPA_MAX_REINTENTOS"] = "3"
 os.environ["SEPA_BACKOFF_BASE_S"] = "0"      # sin esperas reales en el test
 os.environ["SEPA_FALLBACK_MAX_DIAS"] = "7"
 
 import pandas as pd, pyarrow as pa, pyarrow.parquet as pq
 import main
+from tests import cache_temporal
 
 FALLOS = []
 def check(cond, msg):
@@ -46,6 +48,14 @@ AYER  = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
 VIEJO = (datetime.now() - timedelta(days=20)).strftime("%Y-%m-%d")
 DIA_HOY = datetime.now().weekday()
 OTRO_DIA = (DIA_HOY + 1) % 7
+
+# ── 0. main corre contra CACHE, también los precios manuales ─────────────────
+print("\n[0] CACHE_DIR y PRECIOS_MANUALES_PATH de main, aislados")
+try:
+    cache_temporal.afirmar_aislado(main); motivo = ""
+except AssertionError as e:
+    motivo = f": {e}"
+check(not motivo, "main no usa /tmp/sepa_cache ni una ruta fuera del temporal" + motivo)
 
 # ── 1. Backoff: reintenta N veces antes de rendirse ──────────────────────────
 print("\n[1] _bg_descargar reintenta con backoff")

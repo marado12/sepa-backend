@@ -10,6 +10,9 @@ import os
 import sys
 from unittest.mock import patch
 
+from tests import cache_temporal
+cache_temporal.fijar()    # antes de importar main: main.py:38-39 lee CACHE_DIR y hace makedirs al importarse
+
 from fastapi.testclient import TestClient
 
 from fuentes import Oferta, Resultado
@@ -284,22 +287,30 @@ def test_auto_no_descarga_el_sepa_dentro_del_request():
     verde sin haber probado nada.
     """
     import tempfile
+    previo = os.environ.get("CACHE_DIR")
     os.environ["CACHE_DIR"] = tempfile.mkdtemp(prefix="sepa_sin_cache_")
-    main = cargar_main("auto")
-    main._cache.clear()
+    try:
+        main = cargar_main("auto")
+        main._cache.clear()
 
-    llamadas = {"n": 0}
-    def contar(dia):
-        llamadas["n"] += 1
-        raise ConnectionError("no debería llegar acá")
+        llamadas = {"n": 0}
+        def contar(dia):
+            llamadas["n"] += 1
+            raise ConnectionError("no debería llegar acá")
 
-    with patch.object(main, "_descargar_y_procesar", side_effect=contar), \
-         patch.object(main, "_get_fuente_online", return_value=FuenteFalsa()):
-        r = _pedir(main)
+        with patch.object(main, "_descargar_y_procesar", side_effect=contar), \
+             patch.object(main, "_get_fuente_online", return_value=FuenteFalsa()):
+            r = _pedir(main)
 
-    assert llamadas["n"] == 0, "el request de un usuario disparó la descarga del SEPA"
-    assert r.status_code == 200, r.text
-    assert r.json()["origen_precios"] == "online"
+        assert llamadas["n"] == 0, "el request de un usuario disparó la descarga del SEPA"
+        assert r.status_code == 200, r.text
+        assert r.json()["origen_precios"] == "online"
+    finally:
+        # el caché vacío es solo de este test: los que corren después reimportan main
+        if previo is None:
+            os.environ.pop("CACHE_DIR", None)
+        else:
+            os.environ["CACHE_DIR"] = previo
 
 
 def test_el_error_del_sepa_no_llega_con_la_url_interna():
@@ -415,6 +426,31 @@ def test_toda_cadena_online_esta_en_cadenas_keywords():
     assert not faltan, (
         f"{sorted(faltan)} se consulta(n) online pero no está(n) en CADENAS_KEYWORDS: "
         f"sus precios se descartarían del ranking y del óptimo")
+
+
+def test_aislado_del_cache_real():
+    """
+    main corre contra un temporal propio, no contra /tmp/sepa_cache (tests/cache_temporal.py).
+    Antes de fijar() a nivel módulo, el archivo quedaba aislado solo porque el primer test del
+    runner (test_auto_no_descarga_...) filtraba CACHE_DIR; por eso el nombre ordena antes.
+    """
+    main = cargar_main("auto")
+    cache_temporal.afirmar_aislado(main)
+
+
+def test_auto_no_descarga_no_deja_cambiado_el_entorno():
+    """
+    test_auto_no_descarga_el_sepa_dentro_del_request fija CACHE_DIR a un caché vacío a propósito:
+    tiene que devolverlo como estaba. Sin restaurar, cada test que corre después reimporta main
+    sobre ese temporal. FUENTE_PRECIOS se excluye: es la fuga conocida de cargar_main (queda en el
+    último modo pedido), fuera de esta comparación.
+    """
+    antes = {k: v for k, v in os.environ.items() if k != "FUENTE_PRECIOS"}
+    test_auto_no_descarga_el_sepa_dentro_del_request()
+    despues = {k: v for k, v in os.environ.items() if k != "FUENTE_PRECIOS"}
+    cambios = {k: (antes.get(k), despues.get(k)) for k in sorted(set(antes) | set(despues))
+               if antes.get(k) != despues.get(k)}
+    assert not cambios, f"os.environ quedó cambiado, (antes, después): {cambios}"
 
 
 if __name__ == "__main__":

@@ -7,6 +7,9 @@ Por eso la mayoría de estos tests verifican que NO matchee.
 """
 import re
 
+from tests import cache_temporal
+cache_temporal.fijar()    # antes de importar main: main.py:38-39 lee CACHE_DIR y hace makedirs al importarse
+
 from fuentes import Oferta, Resultado
 from precios_vtex import UMBRAL_MATCH, buscar_precios_online, puntuar
 
@@ -279,6 +282,12 @@ def test_huevos_por_pack_no_castiga_al_maple_de_12():
                          maple, normalizar, main._extraer_cantidades_desc)
     assert s == sin_unidad, (
         "'pack' no puede puntuar distinto que 'unidad': %s vs %s" % (s, sin_unidad))
+
+
+def test_aislado_del_cache_real():
+    """main corre contra un temporal propio, no contra /tmp/sepa_cache (tests/cache_temporal.py)."""
+    import main
+    cache_temporal.afirmar_aislado(main)
 
 
 if __name__ == "__main__":
