@@ -283,18 +283,24 @@ def test_compuesta_sobrevive_a_fuente_que_explota():
     assert len(r.ofertas) == 6
 
 
-if __name__ == "__main__":
-    fallos = 0
-    for nombre, fn in sorted(globals().items()):
-        if nombre.startswith("test_") and callable(fn):
-            try:
-                fn()
-                print(f"  PASS  {nombre}")
-            except Exception as e:
-                fallos += 1
-                print(f"  FAIL  {nombre}: {type(e).__name__}: {e}")
-    print(f"\n{'TODO OK' if not fallos else str(fallos) + ' FALLOS'}")
-    raise SystemExit(1 if fallos else 0)
+def test_runner_corre_todos():
+    """
+    El runner recorre `globals()` en el momento en que se ejecuta: un test_*
+    definido debajo del `if __name__` todavía no existe y no corre nunca, sin
+    que nada lo marque. Pasó con las 5 regresiones del 09/09.
+    """
+    import ast
+    with open(__file__, encoding="utf-8") as f:
+        arbol = ast.parse(f.read())
+    runner = [n.lineno for n in arbol.body
+              if isinstance(n, ast.If) and "__name__" in ast.unparse(n.test)]
+    assert len(runner) == 1, f"esperaba un solo bloque runner, hay {len(runner)}"
+    definidos = {n.name: n.lineno for n in arbol.body
+                 if isinstance(n, ast.FunctionDef) and n.name.startswith("test_")}
+    llamados = {nombre for nombre, linea in definidos.items() if linea < runner[0]}
+    faltan = sorted(set(definidos) - llamados, key=definidos.get)
+    assert not faltan, ("definidos después del runner (:%d), no corren: %s"
+                        % (runner[0], ", ".join(f"{t} (:{definidos[t]})" for t in faltan)))
 
 
 # ─────────────────────────────────────────────────────────────
@@ -367,3 +373,17 @@ def test_la_ventana_de_paginacion_respeta_el_techo_de_vtex():
     """MEDIDO: _to - _from no puede pasar de 50; con 24 se pedía la mitad de lo posible."""
     assert fuentes.VTEX_PAGINA == 50
     assert fuentes.VTEX_PAGINA <= fuentes.VTEX_VENTANA_MAX
+
+
+if __name__ == "__main__":
+    fallos = 0
+    for nombre, fn in sorted(globals().items()):
+        if nombre.startswith("test_") and callable(fn):
+            try:
+                fn()
+                print(f"  PASS  {nombre}")
+            except Exception as e:
+                fallos += 1
+                print(f"  FAIL  {nombre}: {type(e).__name__}: {e}")
+    print(f"\n{'TODO OK' if not fallos else str(fallos) + ' FALLOS'}")
+    raise SystemExit(1 if fallos else 0)
