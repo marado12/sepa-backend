@@ -356,12 +356,15 @@ def buscar_precios_online(
             if c not in consultadas:
                 consultadas.append(c)
 
-        # Mejor match por cadena. Clave (elegible, score, −precio): un candidato que no
+        # Mejor match por cadena. Clave (elegible, score, −costo): un candidato que no
         # puede contestar lo pedido pierde contra cualquiera que sí (Tarea 26, decisión 3);
-        # entre elegibles, a igual score gana el más barato y a distinto score, el mejor
-        # match — el desempate de siempre. Si NINGUNO es elegible queda el de siempre,
-        # marcado `sin_elegible`. Sin `extraer_cantidades` no hay métrica: todos cuentan
-        # como elegibles y la regla no se aplica.
+        # entre elegibles, a igual score gana el que cubre lo pedido más barato
+        # (precio × envases) y a distinto score, el mejor match. ✏️ 19/10: hasta acá el
+        # desempate era −precio, el envase más barato: 8 × $900 le ganaba a 4 × $1.500.
+        # Sin `envases` (no elegible, o sin `extraer_cantidades`) el costo es el precio,
+        # como antes. Si NINGUNO es elegible queda el de siempre, marcado `sin_elegible`.
+        # Sin `extraer_cantidades` no hay métrica: todos cuentan como elegibles y la regla
+        # no se aplica.
         mejor: dict[str, tuple[tuple, float, Oferta, Optional[dict]]] = {}
         for of in r.ofertas:
             if not of.disponible or of.precio <= 0:
@@ -371,7 +374,9 @@ def buscar_precios_online(
                 continue
             pu = _precio_por_100u(of, extraer_cantidades, normalizar)
             ok = elegible(item, of, pu, extraer_cantidades) if extraer_cantidades else True
-            clave = (ok, s, -of.precio)
+            envases = envases_a_comprar(item, of, pu, extraer_cantidades) if extraer_cantidades else None
+            costo = of.precio * envases if envases is not None else of.precio
+            clave = (ok, s, -costo)
             actual = mejor.get(of.cadena)
             if actual is None or clave > actual[0]:
                 mejor[of.cadena] = (clave, s, of, pu)

@@ -1934,33 +1934,38 @@ def _analizar(canasta, precios, promos, dia, promos_sitio_por_cadena=None):
 
 
 def _canasta_optima(canasta, precios):
-    """Estrategia de compra distribuida: cada producto en el super más barato."""
+    """
+    Estrategia de compra distribuida: cada producto en el super donde cubrir lo pedido sale
+    más barato. Cobra y compara como `_analizar`: precio × `_envases`, sin las filas que
+    `_en_el_total` deja afuera (19/10: antes cobraba `precio_min × cantidad` y elegía por
+    precio de envase).
+    """
     items = []
     total_optimo = 0.0
     cadenas_usadas = {}
     for prod in canasta:
-        mejor_cadena, mejor_precio, mejor_p100 = None, float("inf"), None
-        precios_x_cadena = {}
+        mejor_cadena, mejor_sub, mejor_entry = None, float("inf"), None
+        precios_x_cadena, subs = {}, {}
         for cadena in CADENAS_KEYWORDS:
-            entry = precios.get((cadena, prod["nombre"]))
+            entry = _en_el_total(precios.get((cadena, prod["nombre"])))
             if entry:
                 p = entry["precio_min"]
                 precios_x_cadena[cadena] = p
-                if p < mejor_precio:
-                    mejor_precio, mejor_cadena = p, cadena
-                    mejor_p100 = entry.get("precio_por_100u")
+                sub = p * _envases(prod, entry)
+                subs[cadena] = sub
+                if sub < mejor_sub:
+                    mejor_sub, mejor_cadena, mejor_entry = sub, cadena, entry
         if mejor_cadena:
-            sub = mejor_precio * prod["cantidad"]
-            total_optimo += sub
-            precio_caro = max(precios_x_cadena.values())
+            total_optimo += mejor_sub
             items.append({"producto": prod["nombre"], "cantidad": prod["cantidad"],
-                           "cadena": mejor_cadena, "precio_unit": mejor_precio,
-                           "precio_por_100u": mejor_p100,
-                           "subtotal": sub, "ahorro": (precio_caro - mejor_precio) * prod["cantidad"],
+                           "envases": _envases(prod, mejor_entry),
+                           "cadena": mejor_cadena, "precio_unit": mejor_entry["precio_min"],
+                           "precio_por_100u": mejor_entry.get("precio_por_100u"),
+                           "subtotal": mejor_sub, "ahorro": max(subs.values()) - mejor_sub,
                            "precios_por_cadena": precios_x_cadena, "ok": True})
             cadenas_usadas.setdefault(mejor_cadena, []).append(prod["nombre"])
         else:
-            items.append({"producto": prod["nombre"], "cantidad": prod["cantidad"],
+            items.append({"producto": prod["nombre"], "cantidad": prod["cantidad"], "envases": None,
                            "cadena": None, "precio_unit": None, "precio_por_100u": None,
                            "subtotal": 0, "ahorro": 0, "precios_por_cadena": {}, "ok": False})
     return {"items": items, "total_optimo": round(total_optimo, 2), "cadenas_usadas": cadenas_usadas}

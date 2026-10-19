@@ -400,6 +400,86 @@ def test_aislado_del_cache_real():
     cache_temporal.afirmar_aislado(main)
 
 
+# ── (e) La canasta óptima cobra por envases (19/10) ──────────────────
+#
+# `_canasta_optima` cobraba `precio_min × cantidad`, elegía la cadena por precio de envase y no leía
+# `envases` ni `sin_elegible`. Sobre la captura del 18/10 la pantalla decía $75.676 y el cobro real por
+# envases era $79.576 (reporte-diag-canasta-2026-10-19.md). Acá se prueba `_canasta_optima` sola, con
+# entradas de `precios` armadas a mano en la forma que deja `buscar_precios_online`, como
+# `test_una_entrada_sin_envases_se_cobra_como_siempre`.
+
+_FIDEOS = {"nombre": "Fideos spaghetti", "cantidad": 2, "unidad": "kg"}
+
+
+def _entrada(precio, envases):
+    """Una entrada de la ruta online: `envases` None es `sin_elegible`."""
+    return {"precio_min": precio, "precio_por_100u": None, "envases": envases, "sin_elegible": envases is None}
+
+
+def _item_optimo(canasta, precios, producto):
+    return next(i for i in main._canasta_optima(canasta, precios)["items"] if i["producto"] == producto)
+
+
+def test_optimo_cobra_los_envases():
+    """T1. Fideos 2 kg con un envase de 500 g a $900: 4 envases, $3.600 (antes cobraba 2, $1.800)."""
+    precios = {("Carrefour", "Fideos spaghetti"): _entrada(900.0, 4.0)}
+    it = _item_optimo([_FIDEOS], precios, "Fideos spaghetti")
+    assert it["subtotal"] == 3600.0, f"subtotal {it['subtotal']}, esperaba 3600.0"
+
+
+def test_optimo_elige_por_lo_que_cuesta_cubrir_lo_pedido():
+    """T2. 1 kg a $1.500 (2 envases, $3.000) contra 500 g a $900 (4 envases, $3.600): gana el kilo."""
+    precios = {("Carrefour", "Fideos spaghetti"): _entrada(1500.0, 2.0),
+               ("Día", "Fideos spaghetti"): _entrada(900.0, 4.0)}
+    it = _item_optimo([_FIDEOS], precios, "Fideos spaghetti")
+    assert (it["cadena"], it["subtotal"]) == ("Carrefour", 3000.0), (it["cadena"], it["subtotal"])
+
+
+def test_optimo_saltea_sin_elegible():
+    """T3. La cadena `sin_elegible` tiene el precio más bajo y no gana ni suma."""
+    precios = {("Vea", "Fideos spaghetti"): _entrada(500.0, None),
+               ("Día", "Fideos spaghetti"): _entrada(900.0, 4.0)}
+    opt = main._canasta_optima([_FIDEOS], precios)
+    it = opt["items"][0]
+    assert (it["cadena"], opt["total_optimo"]) == ("Día", 3600.0), (it["cadena"], opt["total_optimo"])
+
+
+def test_optimo_el_ahorro_es_entre_subtotales_en_el_total():
+    """T4. ahorro = subtotal más caro − subtotal más barato, por envases y sin la fila `sin_elegible`."""
+    precios = {("Vea", "Fideos spaghetti"): _entrada(5000.0, None),
+               ("Día", "Fideos spaghetti"): _entrada(900.0, 4.0),
+               ("Carrefour", "Fideos spaghetti"): _entrada(1500.0, 2.0)}
+    it = _item_optimo([_FIDEOS], precios, "Fideos spaghetti")
+    assert it["ahorro"] == 600.0, f"ahorro {it['ahorro']}, esperaba 3600 − 3000 = 600"
+
+
+def test_optimo_entrada_sin_envases_se_cobra_como_siempre():
+    """T5 (control). Ruta SEPA y precios manuales no traen `envases`: precio × cantidad."""
+    precios = {("Día", "x"): {"precio_min": 100.0, "precio_por_100u": None, "fuente": "manual"}}
+    it = _item_optimo([{"nombre": "x", "cantidad": 3, "unidad": "kg"}], precios, "x")
+    assert it["subtotal"] == 300.0, f"subtotal {it['subtotal']}, esperaba 300.0"
+
+
+def test_optimo_cada_item_trae_envases():
+    """T6. Cada ítem de la respuesta trae `envases`, también el que no tiene precio."""
+    canasta = [_FIDEOS, {"nombre": "Harissa", "cantidad": 1, "unidad": "unidad"}]
+    precios = {("Día", "Fideos spaghetti"): _entrada(900.0, 4.0)}
+    items = main._canasta_optima(canasta, precios)["items"]
+    assert [(i["producto"], "envases" in i, i.get("envases")) for i in items] == \
+        [("Fideos spaghetti", True, 4.0), ("Harissa", True, None)], items
+
+
+def test_optimo_el_total_es_la_suma_de_los_subtotales():
+    """T7 (control). `total_optimo` = Σ subtotales de los ítems."""
+    canasta = [_FIDEOS, {"nombre": "x", "cantidad": 3, "unidad": "kg"}]
+    precios = {("Día", "Fideos spaghetti"): _entrada(900.0, 4.0),
+               ("Carrefour", "Fideos spaghetti"): _entrada(1500.0, 2.0),
+               ("Día", "x"): {"precio_min": 100.0, "precio_por_100u": None, "fuente": "manual"}}
+    opt = main._canasta_optima(canasta, precios)
+    suma = sum(i["subtotal"] for i in opt["items"])
+    assert abs(opt["total_optimo"] - suma) < 0.005, (opt["total_optimo"], suma)
+
+
 if __name__ == "__main__":
     import logging
     logging.disable(logging.INFO)

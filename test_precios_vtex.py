@@ -290,6 +290,40 @@ def test_aislado_del_cache_real():
     cache_temporal.afirmar_aislado(main)
 
 
+# ── El representante desempata por lo que cuesta cubrir lo pedido (19/10) ──
+#
+# A igual puntaje ganaba el ENVASE más barato (−precio), no lo que se paga por lo
+# pedido: con 4 kg de fideos, 8 × $900 le ganaba a 4 × $1.500. El pedido es 4 kg y
+# no 2 porque con 2 kg el ×0,7 de `puntuar` castiga al de 500 g (ratio 0,25) y no al
+# de 1 kg (ratio 0,5): ya gana por puntaje y no hay empate que desempatar. Con 4 kg
+# los dos quedan lejos, se castigan igual y empatan en 0,607 — el caso de los fideos
+# de la captura, donde el ×0,7 "no elige nada".
+
+def test_a_igual_match_gana_el_que_cubre_lo_pedido_mas_barato():
+    """T8. Pedido 4 kg, mismo puntaje: 500 g a $900 (8 × = $7.200) contra 1 kg a $1.500 (4 × = $6.000)."""
+    item = {"nombre": "fideos spaghetti", "cantidad": 4, "unidad": "kg"}
+    chico, grande = of("Día", "Fideos spaghetti 500 g", 900), of("Día", "Fideos spaghetti 1000 g", 1500)
+    s_chico = puntuar(item, chico, normalizar, extraer_cantidades)
+    s_grande = puntuar(item, grande, normalizar, extraer_cantidades)
+    assert s_chico == s_grande, f"el caso pide mismo puntaje: 500 g {s_chico}, 1 kg {s_grande}"
+    precios, _ = buscar_precios_online([item], ["Día"], FuenteFalsa([chico, grande]),
+                                       normalizar, extraer_cantidades)
+    e = precios[("Día", "fideos spaghetti")]
+    assert (e["precio_min"], e["envases"]) == (1500.0, 4.0), (e["precio_min"], e["envases"])
+
+
+def test_a_igual_match_por_unidad_gana_el_mas_barato():
+    """T9 (control). Pedido "2 unidad", click 1: los dos son 2 envases y gana $900, como siempre."""
+    item = {"nombre": "fideos spaghetti", "cantidad": 2, "unidad": "unidad"}
+    chico, grande = of("Día", "Fideos spaghetti 500 g", 900), of("Día", "Fideos spaghetti 1000 g", 1500)
+    assert puntuar(item, chico, normalizar, extraer_cantidades) == \
+        puntuar(item, grande, normalizar, extraer_cantidades)
+    precios, _ = buscar_precios_online([item], ["Día"], FuenteFalsa([chico, grande]),
+                                       normalizar, extraer_cantidades)
+    e = precios[("Día", "fideos spaghetti")]
+    assert (e["precio_min"], e["envases"]) == (900.0, 2.0), (e["precio_min"], e["envases"])
+
+
 if __name__ == "__main__":
     fallos = 0
     for nombre, fn in sorted(globals().items()):
