@@ -25,7 +25,7 @@ python test_sucursales.py
 python test_precios_vtex.py
 python test_promos_sitio.py
 python test_integracion_fuentes.py
-python test_snapshot_catalogo.py     # ← existe pero NO está en el CI. Corrélo igual.
+python test_snapshot_catalogo.py     # ✏️ está en el CI (tests.yml): son 15 comandos fijos, sin pytest
 
 python scripts/medir_vtex.py             # necesita red real (paginación, rate limit)
 python scripts/snapshot_catalogo.py --probe
@@ -43,7 +43,7 @@ de sucursales tenga Vea a ~1,5 km de Junín (regresión del problema abierto #2)
 
 | Archivo | Qué es |
 |---|---|
-| `main.py` | **3.603 líneas, 131 KB.** La app entera: descarga del SEPA, matching, optimizador y los 26 endpoints. Es el archivo más pesado del proyecto — leé por partes, no entero. |
+| `main.py` | **3.603 líneas, ~164 KB.** La app entera: descarga del SEPA, matching, optimizador y los 20 endpoints. Es el archivo más pesado del proyecto — leé por partes, no entero. |
 | `fuentes.py` | `FuenteVTEX`, `FuenteCoto`, `FuenteCompuesta`. Aislamiento de fallos por cadena. Acá vivían los 3 bugs de datos: **corregidos en el commit `4523893`, todavía sin verificar corriendo.** Los comentarios del archivo documentan cada fix y por qué — leelos antes de tocarlo. |
 | `precios_vtex.py` | Matching y traducción a la forma que consume el optimizador. `UMBRAL_MATCH = 0.45`. |
 | `sucursales.py` | `cadenas_cerca(lat, lon, radio)`. **stdlib puro, sin pandas — el CI lo verifica.** Existe para sobrevivir a que el pipeline de parquet esté roto. No le agregues imports pesados. |
@@ -79,7 +79,14 @@ se cobra `precio_min` (los envases enteros que cubren lo pedido; `cantidad` qued
 pedido) y `sin_elegible` marca la fila en la que ningún candidato puede contestar lo pedido:
 queda fuera del total y del %, pero sigue votando en la mediana. Una entrada sin `envases`
 —la ruta SEPA, un precio manual— se cobra `precio_min × cantidad`, como siempre
-(`main._envases`, `main._en_el_total`). `_canasta_optima` no los lee.
+(`main._envases`, `main._en_el_total`). ✏️ ~~`_canasta_optima` no los lee.~~ **Desde `d2ca8c5` (19/10) sí:**
+`_canasta_optima` cobra `precio × envases`, saltea las filas `sin_elegible` (vía `_en_el_total`), elige la cadena
+por subtotal, calcula el ahorro entre subtotales y cada ítem trae un campo nuevo, `envases`. En `precios_vtex.py`
+el representante por cadena ordena por `(elegible, puntaje, −costo)`, con costo = `precio × envases` (antes
+`−precio`). Tests: T1–T7 en `test_envases.py` y T8–T9 en `test_precios_vtex.py`, los dos en la CI. Sobre la
+captura del 18/10 el total pasa de $75.676 a $79.576 y ninguna cadena cambia. `CANASTA_DEFAULT` sigue por
+unidades. Deuda: la mutación M3 cae por `TypeError` y no por la aserción; el cambio de clave no movió ninguno
+de los 59 representantes de la captura (0 de 59), así que solo lo prueban T8 y M6.
 
 ## Variables de entorno
 
